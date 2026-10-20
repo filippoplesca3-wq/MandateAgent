@@ -77,6 +77,19 @@ function shortId(id: string, size = 8): string {
   return id.slice(0, size)
 }
 
+function recordedOn(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return date.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Small presentational pieces
 // ---------------------------------------------------------------------------
@@ -136,6 +149,7 @@ function BudgetBar(props: { budget: Money; spent: Money; remaining: Money }) {
 function MandateCard(props: {
   state: Snapshot
   busy: boolean
+  readOnly: boolean
   onIssue: () => void
   onRevoke: () => void
 }) {
@@ -143,7 +157,11 @@ function MandateCard(props: {
   if (!mandate) {
     return (
       <Panel title="Mandate" subtitle="No mandate is current">
-        <button className="btn primary" onClick={props.onIssue} disabled={props.busy}>
+        <button
+          className="btn primary"
+          onClick={props.onIssue}
+          disabled={props.busy || props.readOnly}
+        >
           Issue a mandate
         </button>
       </Panel>
@@ -158,7 +176,12 @@ function MandateCard(props: {
       title="Mandate"
       subtitle={`${claims.principal} → ${claims.agentId}`}
       actions={
-        <button className="btn ghost sm" onClick={props.onRevoke} disabled={props.busy}>
+        <button
+          className="btn ghost sm"
+          onClick={props.onRevoke}
+          disabled={props.busy || props.readOnly}
+          title={props.readOnly ? "This is a recording, so it cannot be changed." : undefined}
+        >
           Revoke
         </button>
       }
@@ -231,13 +254,20 @@ function MandateCard(props: {
 // Agent runner
 // ---------------------------------------------------------------------------
 
-function RunPanel(props: { state: Snapshot }) {
-  const [task, setTask] = useState(DEFAULT_TASK)
+function RunPanel(props: { state: Snapshot; replay: Snapshot["replay"] }) {
+  const replay = props.replay
+  const [task, setTask] = useState(replay?.task ?? DEFAULT_TASK)
+  const [apiKey, setApiKey] = useState("")
+  const [showKey, setShowKey] = useState(false)
   const [running, setRunning] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [result, setResult] = useState<AgentRunResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const startedAt = useRef<number>(0)
+
+  useEffect(() => {
+    if (replay) setTask(replay.task)
+  }, [replay])
 
   useEffect(() => {
     if (!running) return
@@ -254,7 +284,10 @@ function RunPanel(props: { state: Snapshot }) {
     try {
       const response = await api<AgentRunResponse>("/api/agent/run", {
         method: "POST",
-        body: JSON.stringify({ task }),
+        body: JSON.stringify({
+          task,
+          ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+        }),
       })
       setResult(response)
     } catch (caught) {
@@ -262,17 +295,34 @@ function RunPanel(props: { state: Snapshot }) {
     } finally {
       setRunning(false)
     }
-  }, [task])
+  }, [task, apiKey])
+
+  // A recording should start by itself: a visitor who never clicks still sees
+  // the whole run. Pressing the button again replays it.
+  const autoStarted = useRef(false)
+  useEffect(() => {
+    if (!replay || autoStarted.current) return
+    const timer = setTimeout(() => {
+      autoStarted.current = true
+      void run()
+    }, 700)
+    return () => clearTimeout(timer)
+  }, [replay, run])
 
   const busy = running || props.state.running
+  const locked = Boolean(replay)
 
   return (
     <Panel
       title="Agent run"
-      subtitle="The model proposes. The mandate decides."
+      subtitle={
+        replay
+          ? "Plays back a recording of a real run. No API calls."
+          : "The model proposes. The mandate decides."
+      }
       actions={
         <button className="btn primary" onClick={() => void run()} disabled={busy}>
-          {busy ? "Running…" : "Run agent"}
+          {busy ? (locked ? "Playing…" : "Running…") : locked ? "Play recording" : "Run agent"}
         </button>
       }
     >
@@ -282,22 +332,47 @@ function RunPanel(props: { state: Snapshot }) {
         onChange={(event) => setTask(event.target.value)}
         rows={2}
         spellCheck={false}
-        disabled={busy}
+        disabled={busy || locked}
+        title={locked ? "The task is fixed in the recording." : undefined}
       />
 
       <div className="run-meta">
         {busy ? (
           <span className="live">
-            <span className="pulse" /> working · {(elapsed / 1000).toFixed(1)}s
+            <span className="pulse" /> {locked ? "playing" : "working"} ·{" "}
+            {(elapsed / 1000).toFixed(1)}s
           </span>
         ) : result ? (
           <span className="muted">
             {result.model} · {((result.durationMs ?? 0) / 1000).toFixed(1)}s
+            {result.replay ? " · recorded" : ""}
           </span>
         ) : (
-          <span className="muted">{props.state.model ?? "model chosen at runtime"}</span>
+          <span className="muted">
+            {replay ? `recorded with ${replay.model}` : props.state.model ?? "model chosen at runtime"}
+          </span>
         )}
       </div>
+
+      {!locked ? (
+        <div className="key-row">
+          <button className="btn ghost sm" onClick={() => setShowKey((value) => !value)}>
+            {showKey ? "Hide key" : "Use your own Gemini key"}
+          </button>
+          {showKey ? (
+            <input
+              className="key-input"
+              type="password"
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+              placeholder="AIza… — used for this run only, never stored"
+              autoComplete="off"
+              spellCheck={false}
+              disabled={busy}
+            />
+          ) : null}
+        </div>
+      ) : null}
 
       {error ? <div className="alert error">{error}</div> : null}
 
@@ -425,6 +500,7 @@ function TrustPanel(props: { scores: TrustScore[] }) {
 function ApprovalsPanel(props: {
   approvals: PendingApproval[]
   busy: boolean
+  readOnly: boolean
   onResolve: (id: string, approve: boolean) => void
 }) {
   const pending = props.approvals.filter((item) => item.status === "pending")
@@ -433,9 +509,11 @@ function ApprovalsPanel(props: {
     <Panel
       title="Waiting on you"
       subtitle={
-        pending.length
-          ? `${pending.length} payment${pending.length === 1 ? "" : "s"} above the approval threshold`
-          : "Nothing is parked"
+        props.readOnly
+          ? "Read-only recording — approvals are disabled"
+          : pending.length
+            ? `${pending.length} payment${pending.length === 1 ? "" : "s"} above the approval threshold`
+            : "Nothing is parked"
       }
     >
       {pending.length === 0 ? (
@@ -456,14 +534,14 @@ function ApprovalsPanel(props: {
               <div className="approval-actions">
                 <button
                   className="btn sm primary"
-                  disabled={props.busy}
+                  disabled={props.busy || props.readOnly}
                   onClick={() => props.onResolve(item.id, true)}
                 >
                   Approve & pay
                 </button>
                 <button
                   className="btn sm ghost"
-                  disabled={props.busy}
+                  disabled={props.busy || props.readOnly}
                   onClick={() => props.onResolve(item.id, false)}
                 >
                   Reject
@@ -678,6 +756,7 @@ export function App() {
   const mandate = state.mandate
   const revoked = Boolean(mandate?.state.revokedAt)
   const waiting = state.approvals.filter((item) => item.status === "pending").length
+  const readOnly = state.mode === "replay"
 
   return (
     <div className="app">
@@ -705,6 +784,15 @@ export function App() {
         </div>
       </header>
 
+      {state.replay ? (
+        <div className="banner info">
+          <strong>Recorded run.</strong> This is a real Gemini run ({state.replay.model}) captured on{" "}
+          {recordedOn(state.replay.recordedAt)} in {state.replay.paypalMode} PayPal mode. Timestamps,
+          ids and decisions are exactly as recorded. Press <em>Play recording</em> — no key, no API
+          calls.
+        </div>
+      ) : null}
+
       {state.mode === "simulated" ? (
         <div className="banner">
           Simulated PayPal — no credentials configured. Every call is answered locally with the
@@ -724,14 +812,20 @@ export function App() {
         <MandateCard
           state={state}
           busy={busy}
+          readOnly={readOnly}
           onIssue={() => void issue()}
           onRevoke={() => void (revokeTarget ? revoke() : issue())}
         />
 
-        <RunPanel state={state} />
+        <RunPanel state={state} replay={state.replay} />
 
         <div className="side">
-          <ApprovalsPanel approvals={state.approvals} busy={busy} onResolve={(id, approve) => void resolve(id, approve)} />
+          <ApprovalsPanel
+            approvals={state.approvals}
+            busy={busy}
+            readOnly={readOnly}
+            onResolve={(id, approve) => void resolve(id, approve)}
+          />
           <TrustPanel scores={state.trust} />
         </div>
 

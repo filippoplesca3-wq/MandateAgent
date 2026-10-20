@@ -17,6 +17,7 @@
     "test:watch": "vitest",
     "e2e": "tsx scripts/e2e.ts",
     "live:check": "tsx scripts/live-check.ts",
+    "record": "tsx scripts/record.ts",
     "build": "npm run typecheck && vite build",
     "start": "tsx src/server/index.ts"
   },

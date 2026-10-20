@@ -175,6 +175,12 @@ code,
   background: rgba(52, 211, 153, 0.08);
 }
 
+.mode.replay {
+  color: #93c5fd;
+  border-color: rgba(96, 165, 250, 0.35);
+  background: rgba(96, 165, 250, 0.08);
+}
+
 .conn {
   font-size: 11px;
   color: var(--muted);
@@ -210,6 +216,12 @@ code,
   color: #ffc9c9;
   background: rgba(248, 113, 113, 0.08);
   border-color: rgba(248, 113, 113, 0.28);
+}
+
+.banner.info {
+  color: #bfdbfe;
+  background: rgba(96, 165, 250, 0.08);
+  border-color: rgba(96, 165, 250, 0.28);
 }
 
 .main {
@@ -511,6 +523,30 @@ code,
   align-items: center;
   justify-content: space-between;
   font-size: 11.5px;
+}
+
+.key-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.key-input {
+  flex: 1;
+  min-width: 220px;
+  background: var(--bg-soft);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.key-input:focus {
+  outline: none;
+  border-color: var(--blue);
 }
 
 .live {

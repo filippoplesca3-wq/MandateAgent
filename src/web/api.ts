@@ -99,6 +99,13 @@ export interface TrustScore {
   }
 }
 
+export interface ReplayInfo {
+  recordedAt: string
+  model: string
+  task: string
+  paypalMode: string
+}
+
 export interface Snapshot {
   mode: string
   note: string
@@ -106,6 +113,7 @@ export interface Snapshot {
   merchantId: string
   model: string | null
   running: boolean
+  replay: ReplayInfo | null
   mandate: {
     claims: MandateClaims
     signature: string
@@ -133,6 +141,7 @@ export interface AgentStep {
 
 export interface AgentRunResponse {
   ok: boolean
+  replay?: boolean
   model?: string
   text?: string
   steps?: AgentStep[]

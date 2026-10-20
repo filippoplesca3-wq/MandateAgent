@@ -19,11 +19,12 @@ import express, {
 } from "express"
 import { describeMandate, runAgent } from "../agent/agent.js"
 import { toAgentTools } from "../agent/tools.js"
-import { remainingBudget } from "../core/mandate.js"
 import type { Store } from "../core/store.js"
 import type { Currency, MandateConstraints, Money } from "../core/types.js"
 import { guardTools } from "../paypal/guard.js"
 import type { ToolSet } from "../paypal/tool-types.js"
+import type { ReplayPlayer } from "./replay.js"
+import { buildSnapshot, type ServerSnapshot } from "./snapshot.js"
 
 /** PayPal's toolkit only accepts USD, so the demo does too. */
 const CURRENCY: Currency = "USD"
@@ -37,6 +38,8 @@ export interface ServerConfig {
   mode: string
   note: string
   model?: string
+  /** When set, the server serves a recording instead of running the agent. */
+  replay?: ReplayPlayer
 }
 
 export interface ServerHandle {
@@ -68,29 +71,16 @@ export function createApp(config: ServerConfig): ServerHandle {
   // Serialization
   // -------------------------------------------------------------------------
 
-  function snapshot(): Record<string, unknown> {
-    const stored = store.get(mandateId)
-    return {
+  function snapshot(): ServerSnapshot {
+    if (config.replay) return config.replay.snapshot()
+    return buildSnapshot(store, mandateId, {
       mode: config.mode,
       note: config.note,
       agentId,
       merchantId,
-      model: config.model ?? null,
       running,
-      mandate: stored
-        ? {
-            claims: stored.envelope.claims,
-            signature: stored.envelope.signature,
-            algorithm: stored.envelope.algorithm,
-            state: stored.state,
-            remaining: remainingBudget(stored.envelope.claims, stored.state),
-          }
-        : null,
-      ledger: store.ledger.list(),
-      summary: store.ledger.summary(),
-      approvals: store.listApprovals(),
-      trust: store.listTrustScores(),
-    }
+      ...(config.model ? { model: config.model } : {}),
+    })
   }
 
   /**
@@ -98,6 +88,10 @@ export function createApp(config: ServerConfig): ServerHandle {
    * stream so a quiet demo does not re-send the whole snapshot twice a second.
    */
   function fingerprint(): string {
+    if (config.replay) {
+      return `replay|${config.replay.frameIndex}|${config.replay.isPlaying}`
+    }
+
     const stored = store.get(mandateId)
     const approvals = store
       .listApprovals()
@@ -112,6 +106,19 @@ export function createApp(config: ServerConfig): ServerHandle {
       store.ledger.list().length,
       approvals,
     ].join("|")
+  }
+
+  /**
+   * A recording is evidence, not a sandbox. Mutating it would let a visitor
+   * produce a ledger that never happened, so every write is refused.
+   */
+  function refuseInReplay(res: Response): boolean {
+    if (!config.replay) return false
+    res.status(409).json({
+      ok: false,
+      error: "This is a recording, so it is read-only. Run the agent with your own key to interact.",
+    })
+    return true
   }
 
   // -------------------------------------------------------------------------
@@ -133,6 +140,7 @@ export function createApp(config: ServerConfig): ServerHandle {
   // -------------------------------------------------------------------------
 
   app.post("/api/mandate", (req, res, next) => {
+    if (refuseInReplay(res)) return
     try {
       const body = (req.body ?? {}) as Record<string, unknown>
 
@@ -177,6 +185,7 @@ export function createApp(config: ServerConfig): ServerHandle {
   })
 
   app.post("/api/mandate/revoke", (req, res, next) => {
+    if (refuseInReplay(res)) return
     try {
       const body = (req.body ?? {}) as Record<string, unknown>
       const target = stringFrom(body["mandateId"]) ?? mandateId
@@ -197,9 +206,44 @@ export function createApp(config: ServerConfig): ServerHandle {
       return
     }
 
-    const task = stringFrom((req.body as Record<string, unknown> | undefined)?.["task"])
+    const body = (req.body ?? {}) as Record<string, unknown>
+    const replay = config.replay
+
+    // In replay the task is whatever was recorded; the client cannot alter it.
+    if (replay) {
+      running = true
+      replay
+        .play()
+        .then(() => {
+          const run = replay.run
+          res.json({
+            ok: true,
+            replay: true,
+            model: run.model,
+            task: run.task,
+            text: run.text,
+            steps: run.steps,
+            // The real length of the recorded run, not the playback length.
+            durationMs: run.durationMs,
+          })
+        })
+        .finally(() => {
+          running = false
+        })
+      return
+    }
+
+    const task = stringFrom(body["task"])
     if (!task) {
       res.status(400).json({ ok: false, error: "task must be a non-empty string" })
+      return
+    }
+
+    // A visitor may supply their own key for one run. It is handed straight to
+    // the SDK for this call; it is never persisted, logged or put in a snapshot.
+    const apiKey = stringFrom(body["apiKey"])
+    if (apiKey !== undefined && (apiKey.length < 20 || apiKey.length > 300)) {
+      res.status(400).json({ ok: false, error: "apiKey does not look like a Google API key" })
       return
     }
 
@@ -216,6 +260,7 @@ export function createApp(config: ServerConfig): ServerHandle {
       mandateBrief: describeMandate(store, mandateId),
       task,
       ...(config.model ? { model: config.model } : {}),
+      ...(apiKey ? { apiKey } : {}),
     })
       .then((result) => {
         res.json({ ok: true, ...result, totalDurationMs: Date.now() - started })
@@ -238,6 +283,7 @@ export function createApp(config: ServerConfig): ServerHandle {
   // -------------------------------------------------------------------------
 
   app.post("/api/evaluate", (req, res, next) => {
+    if (refuseInReplay(res)) return
     try {
       const body = (req.body ?? {}) as Record<string, unknown>
       const action = stringFrom(body["action"])
@@ -263,6 +309,8 @@ export function createApp(config: ServerConfig): ServerHandle {
   // -------------------------------------------------------------------------
 
   app.post("/api/approvals/:id/resolve", (req, res, next) => {
+    if (refuseInReplay(res)) return
+
     const approve = (req.body as Record<string, unknown> | undefined)?.["approve"]
     if (typeof approve !== "boolean") {
       next(new BadRequest("approve must be a boolean"))

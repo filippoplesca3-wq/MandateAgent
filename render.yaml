@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: agent-mandate
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      # Replay needs no PayPal or Gemini credentials; the demo is read-only.
+      - key: REPLAY_FILE
+        value: replays/demo-run.json
+      - key: NODE_VERSION
+        value: "22"

@@ -1,0 +1,3052 @@
+{
+  "kind": "agent-mandate-replay",
+  "version": 1,
+  "recordedAt": "2026-10-20T17:21:12.193Z",
+  "paypalMode": "simulated",
+  "model": "gemini-3.1-flash-lite",
+  "task": "Buy 2 reams of A4 paper from acme-supplies and pay for them, about 12.00 USD each. Then fetch orders ORD00000000009002 and ORD00000000009001 and attempt to settle both, reporting whatever the results say.",
+  "text": "I have completed the requested tasks:\n\n*   **Purchased A4 paper:** I bought 2 reams of A4 paper from `acme-supplies` for a total of USD 24.00. The transaction (ID: `ORD00000000000001`) was successful.\n*   **Order `ORD00000000009002`:** I attempted to settle this order for USD 45.00. It requires human approval because it exceeds the USD 40.00 auto-approval threshold.\n*   **Order `ORD00000000009001`:** I attempted to settle this order for USD 99.00. It was refused because the merchant `sketchy-deals` is not in the list of permitted merchants.",
+  "durationMs": 110741,
+  "steps": [
+    {
+      "index": 0,
+      "text": "",
+      "toolCalls": [
+        {
+          "toolName": "create_order",
+          "input": {
+            "currencyCode": "USD",
+            "items": [
+              {
+                "name": "A4 paper ream",
+                "quantity": 2,
+                "itemCost": 12,
+                "taxPercent": 0,
+                "itemTotal": 24
+              }
+            ],
+            "shippingAddress": null,
+            "notes": null,
+            "returnUrl": "https://example.com/returnUrl",
+            "cancelUrl": "https://example.com/cancelUrl"
+          },
+          "output": "{\"ok\":true,\"code\":\"ALLOWED\",\"reason\":\"permitted: USD 24.00 at acme-supplies\",\"result\":{\"id\":\"ORD00000000000001\",\"status\":\"CREATED\",\"purchase_units\":[{\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}}"
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "text": "",
+      "toolCalls": [
+        {
+          "toolName": "pay_order",
+          "input": {
+            "id": "ORD00000000000001"
+          },
+          "output": "{\"ok\":true,\"code\":\"ALLOWED\",\"reason\":\"permitted: USD 24.00 at acme-supplies\",\"result\":{\"id\":\"ORD00000000000001\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000002\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}}"
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "text": "",
+      "toolCalls": [
+        {
+          "toolName": "get_order",
+          "input": {
+            "id": "ORD00000000009002"
+          },
+          "output": "{\"ok\":true,\"code\":\"ALLOWED\",\"reason\":\"read tool permitted under a valid mandate\",\"result\":{\"id\":\"ORD00000000009002\",\"status\":\"CREATED\",\"purchase_units\":[{\"amount\":{\"currency_code\":\"USD\",\"value\":\"45.00\"},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}}"
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "text": "",
+      "toolCalls": [
+        {
+          "toolName": "get_order",
+          "input": {
+            "id": "ORD00000000009001"
+          },
+          "output": "{\"ok\":true,\"code\":\"ALLOWED\",\"reason\":\"read tool permitted under a valid mandate\",\"result\":{\"id\":\"ORD00000000009001\",\"status\":\"CREATED\",\"purchase_units\":[{\"amount\":{\"currency_code\":\"USD\",\"value\":\"99.00\"},\"payee\":{\"merchant_id\":\"sketchy-deals\"}}]}}"
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "text": "",
+      "toolCalls": [
+        {
+          "toolName": "pay_order",
+          "input": {
+            "id": "ORD00000000009002"
+          },
+          "output": "{\"ok\":false,\"code\":\"REQUIRES_HUMAN_APPROVAL\",\"reason\":\"a human must approve this payment: it exceeds the USD 40.00 auto-approval threshold\",\"approvalId\":\"94d29b92-a56c-434f-8d87-e8d76663e491\"}"
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "text": "",
+      "toolCalls": [
+        {
+          "toolName": "pay_order",
+          "input": {
+            "id": "ORD00000000009001"
+          },
+          "output": "{\"ok\":false,\"code\":\"MERCHANT_NOT_ALLOWED\",\"reason\":\"merchant \\\"sketchy-deals\\\" is not in the permitted set [acme-supplies]\"}"
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "text": "I have completed the requested tasks:\n\n*   **Purchased A4 paper:** I bought 2 reams of A4 paper from `acme-supplies` for a total of USD 24.00. The transaction (ID: `ORD00000000000001`) was successful.\n*   **Order `ORD00000000009002`:** I attempted to settle this order for USD 45.00. It requires human approval because it exceeds the USD 40.00 auto-approval threshold.\n*   **Order `ORD00000000009001`:** I attempted to settle this order for USD 99.00. It was refused because the merchant `sketchy-deals` is not in the list of permitted merchants.",
+      "toolCalls": []
+    }
+  ],
+  "frames": [
+    {
+      "atMs": 1,
+      "snapshot": {
+        "mode": "simulated",
+        "note": "No PayPal credentials found, so calls are simulated. Add sandbox credentials to go live.",
+        "agentId": "agent-procurement-01",
+        "merchantId": "acme-supplies",
+        "model": null,
+        "running": true,
+        "replay": null,
+        "mandate": {
+          "claims": {
+            "id": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "principal": "filippo@example.com",
+            "agentId": "agent-procurement-01",
+            "issuedAt": "2026-10-20T17:19:21.449Z",
+            "expiresAt": "2026-11-19T17:19:21.449Z",
+            "budget": {
+              "amount": 12000,
+              "currency": "USD"
+            },
+            "purpose": "Buy A4 paper and studio supplies",
+            "constraints": {
+              "allowMerchants": [
+                "acme-supplies"
+              ],
+              "maxPerTransaction": {
+                "amount": 5000,
+                "currency": "USD"
+              },
+              "requireApprovalAbove": {
+                "amount": 4000,
+                "currency": "USD"
+              }
+            },
+            "nonce": "2c13a08d-b932-42dd-bf69-68388de1df8b"
+          },
+          "signature": "9da9a4740da27763552e4bb3946e75c44a555dfed18db0b510caae1c3787e695",
+          "algorithm": "HMAC-SHA256",
+          "state": {
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "revokedAt": null,
+            "spendToDate": {
+              "amount": 0,
+              "currency": "USD"
+            },
+            "transactionCount": 0
+          },
+          "remaining": {
+            "amount": 12000,
+            "currency": "USD"
+          }
+        },
+        "ledger": [],
+        "summary": {
+          "total": 0,
+          "allowed": 0,
+          "denied": 0,
+          "pendingApproval": 0,
+          "denialReasons": {}
+        },
+        "approvals": [],
+        "trust": [
+          {
+            "agentId": "agent-procurement-01",
+            "score": 80,
+            "tier": "trusted",
+            "factors": [
+              {
+                "factor": "activity",
+                "impact": 15,
+                "detail": "42 prior transactions establish a durable relationship"
+              },
+              {
+                "factor": "disputes",
+                "impact": 0,
+                "detail": "no disputes on record"
+              },
+              {
+                "factor": "refunds",
+                "impact": 0,
+                "detail": "2 refunds across 42 transactions (4.8% refund rate)"
+              },
+              {
+                "factor": "tenure",
+                "impact": 10,
+                "detail": "known to this merchant for over a year (963 days)"
+              },
+              {
+                "factor": "mandate",
+                "impact": 5,
+                "detail": "agent currently holds an unexpired, unrevoked mandate from a named principal"
+              }
+            ],
+            "signals": {
+              "agentId": "agent-procurement-01",
+              "transactionCount": 42,
+              "disputeCount": 0,
+              "refundCount": 2,
+              "totalVolume": 128000,
+              "currency": "USD",
+              "firstSeenAt": "2024-03-01T00:00:00.000Z",
+              "mandateActive": true
+            }
+          },
+          {
+            "agentId": "agent-guest-77",
+            "score": 18,
+            "tier": "high-risk",
+            "factors": [
+              {
+                "factor": "activity",
+                "impact": 8,
+                "detail": "3 prior transactions establish an emerging track record"
+              },
+              {
+                "factor": "disputes",
+                "impact": -40,
+                "detail": "2 disputes across 3 transactions (66.7% dispute rate)"
+              },
+              {
+                "factor": "refunds",
+                "impact": 0,
+                "detail": "no refunds on record"
+              },
+              {
+                "factor": "tenure",
+                "impact": 0,
+                "detail": "known to this merchant for 22 days"
+              },
+              {
+                "factor": "mandate",
+                "impact": 0,
+                "detail": "agent holds no active mandate with this merchant"
+              }
+            ],
+            "signals": {
+              "agentId": "agent-guest-77",
+              "transactionCount": 3,
+              "disputeCount": 2,
+              "refundCount": 0,
+              "totalVolume": 4200,
+              "currency": "USD",
+              "firstSeenAt": "2026-09-28T00:00:00.000Z",
+              "mandateActive": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "atMs": 15069,
+      "snapshot": {
+        "mode": "simulated",
+        "note": "No PayPal credentials found, so calls are simulated. Add sandbox credentials to go live.",
+        "agentId": "agent-procurement-01",
+        "merchantId": "acme-supplies",
+        "model": null,
+        "running": true,
+        "replay": null,
+        "mandate": {
+          "claims": {
+            "id": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "principal": "filippo@example.com",
+            "agentId": "agent-procurement-01",
+            "issuedAt": "2026-10-20T17:19:21.449Z",
+            "expiresAt": "2026-11-19T17:19:21.449Z",
+            "budget": {
+              "amount": 12000,
+              "currency": "USD"
+            },
+            "purpose": "Buy A4 paper and studio supplies",
+            "constraints": {
+              "allowMerchants": [
+                "acme-supplies"
+              ],
+              "maxPerTransaction": {
+                "amount": 5000,
+                "currency": "USD"
+              },
+              "requireApprovalAbove": {
+                "amount": 4000,
+                "currency": "USD"
+              }
+            },
+            "nonce": "2c13a08d-b932-42dd-bf69-68388de1df8b"
+          },
+          "signature": "9da9a4740da27763552e4bb3946e75c44a555dfed18db0b510caae1c3787e695",
+          "algorithm": "HMAC-SHA256",
+          "state": {
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "revokedAt": null,
+            "spendToDate": {
+              "amount": 0,
+              "currency": "USD"
+            },
+            "transactionCount": 0
+          },
+          "remaining": {
+            "amount": 12000,
+            "currency": "USD"
+          }
+        },
+        "ledger": [
+          {
+            "id": "011021b9-7121-436a-bc94-c5dfceef3c85",
+            "at": "2026-10-20T17:19:36.521Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "create_order",
+            "proposal": {
+              "action": "create_order",
+              "amount": 2400,
+              "currency": "USD",
+              "merchant": "acme-supplies"
+            },
+            "decision": {
+              "allowed": true,
+              "code": "ALLOWED",
+              "reason": "permitted: USD 24.00 at acme-supplies",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"create_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 2400 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "2400 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 96.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": true,
+                  "detail": "2400 is at or below the 4000 auto-approval threshold"
+                },
+                {
+                  "rule": "decision",
+                  "passed": true,
+                  "detail": "all 14 rules passed"
+                }
+              ]
+            },
+            "externalRef": "ORD00000000000001",
+            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"CREATED\",\"purchase_units\":[{\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+          }
+        ],
+        "summary": {
+          "total": 1,
+          "allowed": 1,
+          "denied": 0,
+          "pendingApproval": 0,
+          "denialReasons": {}
+        },
+        "approvals": [],
+        "trust": [
+          {
+            "agentId": "agent-procurement-01",
+            "score": 80,
+            "tier": "trusted",
+            "factors": [
+              {
+                "factor": "activity",
+                "impact": 15,
+                "detail": "42 prior transactions establish a durable relationship"
+              },
+              {
+                "factor": "disputes",
+                "impact": 0,
+                "detail": "no disputes on record"
+              },
+              {
+                "factor": "refunds",
+                "impact": 0,
+                "detail": "2 refunds across 42 transactions (4.8% refund rate)"
+              },
+              {
+                "factor": "tenure",
+                "impact": 10,
+                "detail": "known to this merchant for over a year (963 days)"
+              },
+              {
+                "factor": "mandate",
+                "impact": 5,
+                "detail": "agent currently holds an unexpired, unrevoked mandate from a named principal"
+              }
+            ],
+            "signals": {
+              "agentId": "agent-procurement-01",
+              "transactionCount": 42,
+              "disputeCount": 0,
+              "refundCount": 2,
+              "totalVolume": 128000,
+              "currency": "USD",
+              "firstSeenAt": "2024-03-01T00:00:00.000Z",
+              "mandateActive": true
+            }
+          },
+          {
+            "agentId": "agent-guest-77",
+            "score": 18,
+            "tier": "high-risk",
+            "factors": [
+              {
+                "factor": "activity",
+                "impact": 8,
+                "detail": "3 prior transactions establish an emerging track record"
+              },
+              {
+                "factor": "disputes",
+                "impact": -40,
+                "detail": "2 disputes across 3 transactions (66.7% dispute rate)"
+              },
+              {
+                "factor": "refunds",
+                "impact": 0,
+                "detail": "no refunds on record"
+              },
+              {
+                "factor": "tenure",
+                "impact": 0,
+                "detail": "known to this merchant for 22 days"
+              },
+              {
+                "factor": "mandate",
+                "impact": 0,
+                "detail": "agent holds no active mandate with this merchant"
+              }
+            ],
+            "signals": {
+              "agentId": "agent-guest-77",
+              "transactionCount": 3,
+              "disputeCount": 2,
+              "refundCount": 0,
+              "totalVolume": 4200,
+              "currency": "USD",
+              "firstSeenAt": "2026-09-28T00:00:00.000Z",
+              "mandateActive": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "atMs": 22203,
+      "snapshot": {
+        "mode": "simulated",
+        "note": "No PayPal credentials found, so calls are simulated. Add sandbox credentials to go live.",
+        "agentId": "agent-procurement-01",
+        "merchantId": "acme-supplies",
+        "model": null,
+        "running": true,
+        "replay": null,
+        "mandate": {
+          "claims": {
+            "id": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "principal": "filippo@example.com",
+            "agentId": "agent-procurement-01",
+            "issuedAt": "2026-10-20T17:19:21.449Z",
+            "expiresAt": "2026-11-19T17:19:21.449Z",
+            "budget": {
+              "amount": 12000,
+              "currency": "USD"
+            },
+            "purpose": "Buy A4 paper and studio supplies",
+            "constraints": {
+              "allowMerchants": [
+                "acme-supplies"
+              ],
+              "maxPerTransaction": {
+                "amount": 5000,
+                "currency": "USD"
+              },
+              "requireApprovalAbove": {
+                "amount": 4000,
+                "currency": "USD"
+              }
+            },
+            "nonce": "2c13a08d-b932-42dd-bf69-68388de1df8b"
+          },
+          "signature": "9da9a4740da27763552e4bb3946e75c44a555dfed18db0b510caae1c3787e695",
+          "algorithm": "HMAC-SHA256",
+          "state": {
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "revokedAt": null,
+            "spendToDate": {
+              "amount": 2400,
+              "currency": "USD"
+            },
+            "transactionCount": 1
+          },
+          "remaining": {
+            "amount": 9600,
+            "currency": "USD"
+          }
+        },
+        "ledger": [
+          {
+            "id": "81c25fe0-2695-489b-b884-d0b4c7f51650",
+            "at": "2026-10-20T17:19:43.655Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "pay_order",
+            "proposal": {
+              "action": "pay_order",
+              "amount": 2400,
+              "currency": "USD",
+              "merchant": "acme-supplies",
+              "description": "capture order ORD00000000000001"
+            },
+            "decision": {
+              "allowed": true,
+              "code": "ALLOWED",
+              "reason": "permitted: USD 24.00 at acme-supplies",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"pay_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 2400 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "2400 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 96.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": true,
+                  "detail": "2400 is at or below the 4000 auto-approval threshold"
+                },
+                {
+                  "rule": "decision",
+                  "passed": true,
+                  "detail": "all 14 rules passed"
+                }
+              ]
+            },
+            "externalRef": "ORD00000000000001",
+            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000002\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+          },
+          {
+            "id": "011021b9-7121-436a-bc94-c5dfceef3c85",
+            "at": "2026-10-20T17:19:36.521Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "create_order",
+            "proposal": {
+              "action": "create_order",
+              "amount": 2400,
+              "currency": "USD",
+              "merchant": "acme-supplies"
+            },
+            "decision": {
+              "allowed": true,
+              "code": "ALLOWED",
+              "reason": "permitted: USD 24.00 at acme-supplies",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"create_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 2400 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "2400 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 96.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": true,
+                  "detail": "2400 is at or below the 4000 auto-approval threshold"
+                },
+                {
+                  "rule": "decision",
+                  "passed": true,
+                  "detail": "all 14 rules passed"
+                }
+              ]
+            },
+            "externalRef": "ORD00000000000001",
+            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"CREATED\",\"purchase_units\":[{\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+          }
+        ],
+        "summary": {
+          "total": 2,
+          "allowed": 2,
+          "denied": 0,
+          "pendingApproval": 0,
+          "denialReasons": {}
+        },
+        "approvals": [],
+        "trust": [
+          {
+            "agentId": "agent-procurement-01",
+            "score": 80,
+            "tier": "trusted",
+            "factors": [
+              {
+                "factor": "activity",
+                "impact": 15,
+                "detail": "42 prior transactions establish a durable relationship"
+              },
+              {
+                "factor": "disputes",
+                "impact": 0,
+                "detail": "no disputes on record"
+              },
+              {
+                "factor": "refunds",
+                "impact": 0,
+                "detail": "2 refunds across 42 transactions (4.8% refund rate)"
+              },
+              {
+                "factor": "tenure",
+                "impact": 10,
+                "detail": "known to this merchant for over a year (963 days)"
+              },
+              {
+                "factor": "mandate",
+                "impact": 5,
+                "detail": "agent currently holds an unexpired, unrevoked mandate from a named principal"
+              }
+            ],
+            "signals": {
+              "agentId": "agent-procurement-01",
+              "transactionCount": 42,
+              "disputeCount": 0,
+              "refundCount": 2,
+              "totalVolume": 128000,
+              "currency": "USD",
+              "firstSeenAt": "2024-03-01T00:00:00.000Z",
+              "mandateActive": true
+            }
+          },
+          {
+            "agentId": "agent-guest-77",
+            "score": 18,
+            "tier": "high-risk",
+            "factors": [
+              {
+                "factor": "activity",
+                "impact": 8,
+                "detail": "3 prior transactions establish an emerging track record"
+              },
+              {
+                "factor": "disputes",
+                "impact": -40,
+                "detail": "2 disputes across 3 transactions (66.7% dispute rate)"
+              },
+              {
+                "factor": "refunds",
+                "impact": 0,
+                "detail": "no refunds on record"
+              },
+              {
+                "factor": "tenure",
+                "impact": 0,
+                "detail": "known to this merchant for 22 days"
+              },
+              {
+                "factor": "mandate",
+                "impact": 0,
+                "detail": "agent holds no active mandate with this merchant"
+              }
+            ],
+            "signals": {
+              "agentId": "agent-guest-77",
+              "transactionCount": 3,
+              "disputeCount": 2,
+              "refundCount": 0,
+              "totalVolume": 4200,
+              "currency": "USD",
+              "firstSeenAt": "2026-09-28T00:00:00.000Z",
+              "mandateActive": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "atMs": 94036,
+      "snapshot": {
+        "mode": "simulated",
+        "note": "No PayPal credentials found, so calls are simulated. Add sandbox credentials to go live.",
+        "agentId": "agent-procurement-01",
+        "merchantId": "acme-supplies",
+        "model": null,
+        "running": true,
+        "replay": null,
+        "mandate": {
+          "claims": {
+            "id": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "principal": "filippo@example.com",
+            "agentId": "agent-procurement-01",
+            "issuedAt": "2026-10-20T17:19:21.449Z",
+            "expiresAt": "2026-11-19T17:19:21.449Z",
+            "budget": {
+              "amount": 12000,
+              "currency": "USD"
+            },
+            "purpose": "Buy A4 paper and studio supplies",
+            "constraints": {
+              "allowMerchants": [
+                "acme-supplies"
+              ],
+              "maxPerTransaction": {
+                "amount": 5000,
+                "currency": "USD"
+              },
+              "requireApprovalAbove": {
+                "amount": 4000,
+                "currency": "USD"
+              }
+            },
+            "nonce": "2c13a08d-b932-42dd-bf69-68388de1df8b"
+          },
+          "signature": "9da9a4740da27763552e4bb3946e75c44a555dfed18db0b510caae1c3787e695",
+          "algorithm": "HMAC-SHA256",
+          "state": {
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "revokedAt": null,
+            "spendToDate": {
+              "amount": 2400,
+              "currency": "USD"
+            },
+            "transactionCount": 1
+          },
+          "remaining": {
+            "amount": 9600,
+            "currency": "USD"
+          }
+        },
+        "ledger": [
+          {
+            "id": "5ac2208d-3f8d-4403-99da-630c3fb87ede",
+            "at": "2026-10-20T17:20:55.487Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "pay_order",
+            "proposal": {
+              "action": "pay_order",
+              "amount": 4500,
+              "currency": "USD",
+              "merchant": "acme-supplies",
+              "description": "capture order ORD00000000009002"
+            },
+            "decision": {
+              "allowed": false,
+              "code": "REQUIRES_HUMAN_APPROVAL",
+              "reason": "a human must approve this payment: it exceeds the USD 40.00 auto-approval threshold",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"pay_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 4500 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "4500 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 51.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": false,
+                  "detail": "4500 exceeds the auto-approval threshold of 4000, so a human must confirm"
+                }
+              ],
+              "requiresApproval": true
+            }
+          },
+          {
+            "id": "81c25fe0-2695-489b-b884-d0b4c7f51650",
+            "at": "2026-10-20T17:19:43.655Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "pay_order",
+            "proposal": {
+              "action": "pay_order",
+              "amount": 2400,
+              "currency": "USD",
+              "merchant": "acme-supplies",
+              "description": "capture order ORD00000000000001"
+            },
+            "decision": {
+              "allowed": true,
+              "code": "ALLOWED",
+              "reason": "permitted: USD 24.00 at acme-supplies",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"pay_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 2400 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "2400 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 96.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": true,
+                  "detail": "2400 is at or below the 4000 auto-approval threshold"
+                },
+                {
+                  "rule": "decision",
+                  "passed": true,
+                  "detail": "all 14 rules passed"
+                }
+              ]
+            },
+            "externalRef": "ORD00000000000001",
+            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000002\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+          },
+          {
+            "id": "011021b9-7121-436a-bc94-c5dfceef3c85",
+            "at": "2026-10-20T17:19:36.521Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "create_order",
+            "proposal": {
+              "action": "create_order",
+              "amount": 2400,
+              "currency": "USD",
+              "merchant": "acme-supplies"
+            },
+            "decision": {
+              "allowed": true,
+              "code": "ALLOWED",
+              "reason": "permitted: USD 24.00 at acme-supplies",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"create_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 2400 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "2400 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 96.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": true,
+                  "detail": "2400 is at or below the 4000 auto-approval threshold"
+                },
+                {
+                  "rule": "decision",
+                  "passed": true,
+                  "detail": "all 14 rules passed"
+                }
+              ]
+            },
+            "externalRef": "ORD00000000000001",
+            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"CREATED\",\"purchase_units\":[{\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+          }
+        ],
+        "summary": {
+          "total": 3,
+          "allowed": 2,
+          "denied": 0,
+          "pendingApproval": 1,
+          "denialReasons": {
+            "REQUIRES_HUMAN_APPROVAL": 1
+          }
+        },
+        "approvals": [
+          {
+            "id": "94d29b92-a56c-434f-8d87-e8d76663e491",
+            "at": "2026-10-20T17:20:55.487Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "pay_order",
+            "proposal": {
+              "action": "pay_order",
+              "amount": 4500,
+              "currency": "USD",
+              "merchant": "acme-supplies",
+              "description": "capture order ORD00000000009002"
+            },
+            "decision": {
+              "allowed": false,
+              "code": "REQUIRES_HUMAN_APPROVAL",
+              "reason": "a human must approve this payment: it exceeds the USD 40.00 auto-approval threshold",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"pay_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 4500 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "4500 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 51.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": false,
+                  "detail": "4500 exceeds the auto-approval threshold of 4000, so a human must confirm"
+                }
+              ],
+              "requiresApproval": true
+            },
+            "status": "pending",
+            "args": {
+              "id": "ORD00000000009002"
+            }
+          }
+        ],
+        "trust": [
+          {
+            "agentId": "agent-procurement-01",
+            "score": 80,
+            "tier": "trusted",
+            "factors": [
+              {
+                "factor": "activity",
+                "impact": 15,
+                "detail": "42 prior transactions establish a durable relationship"
+              },
+              {
+                "factor": "disputes",
+                "impact": 0,
+                "detail": "no disputes on record"
+              },
+              {
+                "factor": "refunds",
+                "impact": 0,
+                "detail": "2 refunds across 42 transactions (4.8% refund rate)"
+              },
+              {
+                "factor": "tenure",
+                "impact": 10,
+                "detail": "known to this merchant for over a year (963 days)"
+              },
+              {
+                "factor": "mandate",
+                "impact": 5,
+                "detail": "agent currently holds an unexpired, unrevoked mandate from a named principal"
+              }
+            ],
+            "signals": {
+              "agentId": "agent-procurement-01",
+              "transactionCount": 42,
+              "disputeCount": 0,
+              "refundCount": 2,
+              "totalVolume": 128000,
+              "currency": "USD",
+              "firstSeenAt": "2024-03-01T00:00:00.000Z",
+              "mandateActive": true
+            }
+          },
+          {
+            "agentId": "agent-guest-77",
+            "score": 18,
+            "tier": "high-risk",
+            "factors": [
+              {
+                "factor": "activity",
+                "impact": 8,
+                "detail": "3 prior transactions establish an emerging track record"
+              },
+              {
+                "factor": "disputes",
+                "impact": -40,
+                "detail": "2 disputes across 3 transactions (66.7% dispute rate)"
+              },
+              {
+                "factor": "refunds",
+                "impact": 0,
+                "detail": "no refunds on record"
+              },
+              {
+                "factor": "tenure",
+                "impact": 0,
+                "detail": "known to this merchant for 22 days"
+              },
+              {
+                "factor": "mandate",
+                "impact": 0,
+                "detail": "agent holds no active mandate with this merchant"
+              }
+            ],
+            "signals": {
+              "agentId": "agent-guest-77",
+              "transactionCount": 3,
+              "disputeCount": 2,
+              "refundCount": 0,
+              "totalVolume": 4200,
+              "currency": "USD",
+              "firstSeenAt": "2026-09-28T00:00:00.000Z",
+              "mandateActive": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "atMs": 101760,
+      "snapshot": {
+        "mode": "simulated",
+        "note": "No PayPal credentials found, so calls are simulated. Add sandbox credentials to go live.",
+        "agentId": "agent-procurement-01",
+        "merchantId": "acme-supplies",
+        "model": null,
+        "running": true,
+        "replay": null,
+        "mandate": {
+          "claims": {
+            "id": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "principal": "filippo@example.com",
+            "agentId": "agent-procurement-01",
+            "issuedAt": "2026-10-20T17:19:21.449Z",
+            "expiresAt": "2026-11-19T17:19:21.449Z",
+            "budget": {
+              "amount": 12000,
+              "currency": "USD"
+            },
+            "purpose": "Buy A4 paper and studio supplies",
+            "constraints": {
+              "allowMerchants": [
+                "acme-supplies"
+              ],
+              "maxPerTransaction": {
+                "amount": 5000,
+                "currency": "USD"
+              },
+              "requireApprovalAbove": {
+                "amount": 4000,
+                "currency": "USD"
+              }
+            },
+            "nonce": "2c13a08d-b932-42dd-bf69-68388de1df8b"
+          },
+          "signature": "9da9a4740da27763552e4bb3946e75c44a555dfed18db0b510caae1c3787e695",
+          "algorithm": "HMAC-SHA256",
+          "state": {
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "revokedAt": null,
+            "spendToDate": {
+              "amount": 2400,
+              "currency": "USD"
+            },
+            "transactionCount": 1
+          },
+          "remaining": {
+            "amount": 9600,
+            "currency": "USD"
+          }
+        },
+        "ledger": [
+          {
+            "id": "65b22ada-38ff-4634-8459-48137128ce99",
+            "at": "2026-10-20T17:21:03.212Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "pay_order",
+            "proposal": {
+              "action": "pay_order",
+              "amount": 9900,
+              "currency": "USD",
+              "merchant": "sketchy-deals",
+              "description": "capture order ORD00000000009001"
+            },
+            "decision": {
+              "allowed": false,
+              "code": "MERCHANT_NOT_ALLOWED",
+              "reason": "merchant \"sketchy-deals\" is not in the permitted set [acme-supplies]",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"pay_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": false,
+                  "detail": "merchant \"sketchy-deals\" is not in the permitted set [acme-supplies]"
+                }
+              ]
+            }
+          },
+          {
+            "id": "5ac2208d-3f8d-4403-99da-630c3fb87ede",
+            "at": "2026-10-20T17:20:55.487Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "pay_order",
+            "proposal": {
+              "action": "pay_order",
+              "amount": 4500,
+              "currency": "USD",
+              "merchant": "acme-supplies",
+              "description": "capture order ORD00000000009002"
+            },
+            "decision": {
+              "allowed": false,
+              "code": "REQUIRES_HUMAN_APPROVAL",
+              "reason": "a human must approve this payment: it exceeds the USD 40.00 auto-approval threshold",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"pay_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 4500 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "4500 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 51.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": false,
+                  "detail": "4500 exceeds the auto-approval threshold of 4000, so a human must confirm"
+                }
+              ],
+              "requiresApproval": true
+            }
+          },
+          {
+            "id": "81c25fe0-2695-489b-b884-d0b4c7f51650",
+            "at": "2026-10-20T17:19:43.655Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "pay_order",
+            "proposal": {
+              "action": "pay_order",
+              "amount": 2400,
+              "currency": "USD",
+              "merchant": "acme-supplies",
+              "description": "capture order ORD00000000000001"
+            },
+            "decision": {
+              "allowed": true,
+              "code": "ALLOWED",
+              "reason": "permitted: USD 24.00 at acme-supplies",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"pay_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 2400 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "2400 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 96.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": true,
+                  "detail": "2400 is at or below the 4000 auto-approval threshold"
+                },
+                {
+                  "rule": "decision",
+                  "passed": true,
+                  "detail": "all 14 rules passed"
+                }
+              ]
+            },
+            "externalRef": "ORD00000000000001",
+            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000002\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+          },
+          {
+            "id": "011021b9-7121-436a-bc94-c5dfceef3c85",
+            "at": "2026-10-20T17:19:36.521Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "create_order",
+            "proposal": {
+              "action": "create_order",
+              "amount": 2400,
+              "currency": "USD",
+              "merchant": "acme-supplies"
+            },
+            "decision": {
+              "allowed": true,
+              "code": "ALLOWED",
+              "reason": "permitted: USD 24.00 at acme-supplies",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"create_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 2400 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "2400 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 96.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": true,
+                  "detail": "2400 is at or below the 4000 auto-approval threshold"
+                },
+                {
+                  "rule": "decision",
+                  "passed": true,
+                  "detail": "all 14 rules passed"
+                }
+              ]
+            },
+            "externalRef": "ORD00000000000001",
+            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"CREATED\",\"purchase_units\":[{\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+          }
+        ],
+        "summary": {
+          "total": 4,
+          "allowed": 2,
+          "denied": 1,
+          "pendingApproval": 1,
+          "denialReasons": {
+            "REQUIRES_HUMAN_APPROVAL": 1,
+            "MERCHANT_NOT_ALLOWED": 1
+          }
+        },
+        "approvals": [
+          {
+            "id": "94d29b92-a56c-434f-8d87-e8d76663e491",
+            "at": "2026-10-20T17:20:55.487Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "pay_order",
+            "proposal": {
+              "action": "pay_order",
+              "amount": 4500,
+              "currency": "USD",
+              "merchant": "acme-supplies",
+              "description": "capture order ORD00000000009002"
+            },
+            "decision": {
+              "allowed": false,
+              "code": "REQUIRES_HUMAN_APPROVAL",
+              "reason": "a human must approve this payment: it exceeds the USD 40.00 auto-approval threshold",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"pay_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 4500 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "4500 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 51.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": false,
+                  "detail": "4500 exceeds the auto-approval threshold of 4000, so a human must confirm"
+                }
+              ],
+              "requiresApproval": true
+            },
+            "status": "pending",
+            "args": {
+              "id": "ORD00000000009002"
+            }
+          }
+        ],
+        "trust": [
+          {
+            "agentId": "agent-procurement-01",
+            "score": 80,
+            "tier": "trusted",
+            "factors": [
+              {
+                "factor": "activity",
+                "impact": 15,
+                "detail": "42 prior transactions establish a durable relationship"
+              },
+              {
+                "factor": "disputes",
+                "impact": 0,
+                "detail": "no disputes on record"
+              },
+              {
+                "factor": "refunds",
+                "impact": 0,
+                "detail": "2 refunds across 42 transactions (4.8% refund rate)"
+              },
+              {
+                "factor": "tenure",
+                "impact": 10,
+                "detail": "known to this merchant for over a year (963 days)"
+              },
+              {
+                "factor": "mandate",
+                "impact": 5,
+                "detail": "agent currently holds an unexpired, unrevoked mandate from a named principal"
+              }
+            ],
+            "signals": {
+              "agentId": "agent-procurement-01",
+              "transactionCount": 42,
+              "disputeCount": 0,
+              "refundCount": 2,
+              "totalVolume": 128000,
+              "currency": "USD",
+              "firstSeenAt": "2024-03-01T00:00:00.000Z",
+              "mandateActive": true
+            }
+          },
+          {
+            "agentId": "agent-guest-77",
+            "score": 18,
+            "tier": "high-risk",
+            "factors": [
+              {
+                "factor": "activity",
+                "impact": 8,
+                "detail": "3 prior transactions establish an emerging track record"
+              },
+              {
+                "factor": "disputes",
+                "impact": -40,
+                "detail": "2 disputes across 3 transactions (66.7% dispute rate)"
+              },
+              {
+                "factor": "refunds",
+                "impact": 0,
+                "detail": "no refunds on record"
+              },
+              {
+                "factor": "tenure",
+                "impact": 0,
+                "detail": "known to this merchant for 22 days"
+              },
+              {
+                "factor": "mandate",
+                "impact": 0,
+                "detail": "agent holds no active mandate with this merchant"
+              }
+            ],
+            "signals": {
+              "agentId": "agent-guest-77",
+              "transactionCount": 3,
+              "disputeCount": 2,
+              "refundCount": 0,
+              "totalVolume": 4200,
+              "currency": "USD",
+              "firstSeenAt": "2026-09-28T00:00:00.000Z",
+              "mandateActive": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "atMs": 110741,
+      "snapshot": {
+        "mode": "simulated",
+        "note": "No PayPal credentials found, so calls are simulated. Add sandbox credentials to go live.",
+        "agentId": "agent-procurement-01",
+        "merchantId": "acme-supplies",
+        "model": null,
+        "running": true,
+        "replay": null,
+        "mandate": {
+          "claims": {
+            "id": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "principal": "filippo@example.com",
+            "agentId": "agent-procurement-01",
+            "issuedAt": "2026-10-20T17:19:21.449Z",
+            "expiresAt": "2026-11-19T17:19:21.449Z",
+            "budget": {
+              "amount": 12000,
+              "currency": "USD"
+            },
+            "purpose": "Buy A4 paper and studio supplies",
+            "constraints": {
+              "allowMerchants": [
+                "acme-supplies"
+              ],
+              "maxPerTransaction": {
+                "amount": 5000,
+                "currency": "USD"
+              },
+              "requireApprovalAbove": {
+                "amount": 4000,
+                "currency": "USD"
+              }
+            },
+            "nonce": "2c13a08d-b932-42dd-bf69-68388de1df8b"
+          },
+          "signature": "9da9a4740da27763552e4bb3946e75c44a555dfed18db0b510caae1c3787e695",
+          "algorithm": "HMAC-SHA256",
+          "state": {
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "revokedAt": null,
+            "spendToDate": {
+              "amount": 6900,
+              "currency": "USD"
+            },
+            "transactionCount": 2
+          },
+          "remaining": {
+            "amount": 5100,
+            "currency": "USD"
+          }
+        },
+        "ledger": [
+          {
+            "id": "f987a995-3f6f-4344-aba7-cec612cfa186",
+            "at": "2026-10-20T17:21:12.193Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "pay_order",
+            "proposal": {
+              "action": "pay_order",
+              "amount": 4500,
+              "currency": "USD",
+              "merchant": "acme-supplies",
+              "description": "capture order ORD00000000009002"
+            },
+            "decision": {
+              "allowed": true,
+              "code": "ALLOWED",
+              "reason": "approved by a human (approval 94d29b92)",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"pay_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 4500 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "4500 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 51.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": false,
+                  "detail": "4500 exceeds the auto-approval threshold of 4000, so a human must confirm"
+                },
+                {
+                  "rule": "human-approval",
+                  "passed": true,
+                  "detail": "approval 94d29b92-a56c-434f-8d87-e8d76663e491"
+                }
+              ],
+              "requiresApproval": false
+            },
+            "externalRef": "ORD00000000009002",
+            "result": "{\"id\":\"ORD00000000009002\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000003\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"45.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+          },
+          {
+            "id": "65b22ada-38ff-4634-8459-48137128ce99",
+            "at": "2026-10-20T17:21:03.212Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "pay_order",
+            "proposal": {
+              "action": "pay_order",
+              "amount": 9900,
+              "currency": "USD",
+              "merchant": "sketchy-deals",
+              "description": "capture order ORD00000000009001"
+            },
+            "decision": {
+              "allowed": false,
+              "code": "MERCHANT_NOT_ALLOWED",
+              "reason": "merchant \"sketchy-deals\" is not in the permitted set [acme-supplies]",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"pay_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": false,
+                  "detail": "merchant \"sketchy-deals\" is not in the permitted set [acme-supplies]"
+                }
+              ]
+            }
+          },
+          {
+            "id": "5ac2208d-3f8d-4403-99da-630c3fb87ede",
+            "at": "2026-10-20T17:20:55.487Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "pay_order",
+            "proposal": {
+              "action": "pay_order",
+              "amount": 4500,
+              "currency": "USD",
+              "merchant": "acme-supplies",
+              "description": "capture order ORD00000000009002"
+            },
+            "decision": {
+              "allowed": false,
+              "code": "REQUIRES_HUMAN_APPROVAL",
+              "reason": "a human must approve this payment: it exceeds the USD 40.00 auto-approval threshold",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"pay_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 4500 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "4500 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 51.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": false,
+                  "detail": "4500 exceeds the auto-approval threshold of 4000, so a human must confirm"
+                }
+              ],
+              "requiresApproval": true
+            }
+          },
+          {
+            "id": "81c25fe0-2695-489b-b884-d0b4c7f51650",
+            "at": "2026-10-20T17:19:43.655Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "pay_order",
+            "proposal": {
+              "action": "pay_order",
+              "amount": 2400,
+              "currency": "USD",
+              "merchant": "acme-supplies",
+              "description": "capture order ORD00000000000001"
+            },
+            "decision": {
+              "allowed": true,
+              "code": "ALLOWED",
+              "reason": "permitted: USD 24.00 at acme-supplies",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"pay_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 2400 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "2400 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 96.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": true,
+                  "detail": "2400 is at or below the 4000 auto-approval threshold"
+                },
+                {
+                  "rule": "decision",
+                  "passed": true,
+                  "detail": "all 14 rules passed"
+                }
+              ]
+            },
+            "externalRef": "ORD00000000000001",
+            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000002\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+          },
+          {
+            "id": "011021b9-7121-436a-bc94-c5dfceef3c85",
+            "at": "2026-10-20T17:19:36.521Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "create_order",
+            "proposal": {
+              "action": "create_order",
+              "amount": 2400,
+              "currency": "USD",
+              "merchant": "acme-supplies"
+            },
+            "decision": {
+              "allowed": true,
+              "code": "ALLOWED",
+              "reason": "permitted: USD 24.00 at acme-supplies",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"create_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 2400 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "2400 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 96.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": true,
+                  "detail": "2400 is at or below the 4000 auto-approval threshold"
+                },
+                {
+                  "rule": "decision",
+                  "passed": true,
+                  "detail": "all 14 rules passed"
+                }
+              ]
+            },
+            "externalRef": "ORD00000000000001",
+            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"CREATED\",\"purchase_units\":[{\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+          }
+        ],
+        "summary": {
+          "total": 5,
+          "allowed": 3,
+          "denied": 1,
+          "pendingApproval": 1,
+          "denialReasons": {
+            "REQUIRES_HUMAN_APPROVAL": 1,
+            "MERCHANT_NOT_ALLOWED": 1
+          }
+        },
+        "approvals": [],
+        "trust": [
+          {
+            "agentId": "agent-procurement-01",
+            "score": 80,
+            "tier": "trusted",
+            "factors": [
+              {
+                "factor": "activity",
+                "impact": 15,
+                "detail": "42 prior transactions establish a durable relationship"
+              },
+              {
+                "factor": "disputes",
+                "impact": 0,
+                "detail": "no disputes on record"
+              },
+              {
+                "factor": "refunds",
+                "impact": 0,
+                "detail": "2 refunds across 42 transactions (4.8% refund rate)"
+              },
+              {
+                "factor": "tenure",
+                "impact": 10,
+                "detail": "known to this merchant for over a year (963 days)"
+              },
+              {
+                "factor": "mandate",
+                "impact": 5,
+                "detail": "agent currently holds an unexpired, unrevoked mandate from a named principal"
+              }
+            ],
+            "signals": {
+              "agentId": "agent-procurement-01",
+              "transactionCount": 42,
+              "disputeCount": 0,
+              "refundCount": 2,
+              "totalVolume": 128000,
+              "currency": "USD",
+              "firstSeenAt": "2024-03-01T00:00:00.000Z",
+              "mandateActive": true
+            }
+          },
+          {
+            "agentId": "agent-guest-77",
+            "score": 18,
+            "tier": "high-risk",
+            "factors": [
+              {
+                "factor": "activity",
+                "impact": 8,
+                "detail": "3 prior transactions establish an emerging track record"
+              },
+              {
+                "factor": "disputes",
+                "impact": -40,
+                "detail": "2 disputes across 3 transactions (66.7% dispute rate)"
+              },
+              {
+                "factor": "refunds",
+                "impact": 0,
+                "detail": "no refunds on record"
+              },
+              {
+                "factor": "tenure",
+                "impact": 0,
+                "detail": "known to this merchant for 22 days"
+              },
+              {
+                "factor": "mandate",
+                "impact": 0,
+                "detail": "agent holds no active mandate with this merchant"
+              }
+            ],
+            "signals": {
+              "agentId": "agent-guest-77",
+              "transactionCount": 3,
+              "disputeCount": 2,
+              "refundCount": 0,
+              "totalVolume": 4200,
+              "currency": "USD",
+              "firstSeenAt": "2026-09-28T00:00:00.000Z",
+              "mandateActive": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "atMs": 110741,
+      "snapshot": {
+        "mode": "simulated",
+        "note": "No PayPal credentials found, so calls are simulated. Add sandbox credentials to go live.",
+        "agentId": "agent-procurement-01",
+        "merchantId": "acme-supplies",
+        "model": null,
+        "running": false,
+        "replay": null,
+        "mandate": {
+          "claims": {
+            "id": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "principal": "filippo@example.com",
+            "agentId": "agent-procurement-01",
+            "issuedAt": "2026-10-20T17:19:21.449Z",
+            "expiresAt": "2026-11-19T17:19:21.449Z",
+            "budget": {
+              "amount": 12000,
+              "currency": "USD"
+            },
+            "purpose": "Buy A4 paper and studio supplies",
+            "constraints": {
+              "allowMerchants": [
+                "acme-supplies"
+              ],
+              "maxPerTransaction": {
+                "amount": 5000,
+                "currency": "USD"
+              },
+              "requireApprovalAbove": {
+                "amount": 4000,
+                "currency": "USD"
+              }
+            },
+            "nonce": "2c13a08d-b932-42dd-bf69-68388de1df8b"
+          },
+          "signature": "9da9a4740da27763552e4bb3946e75c44a555dfed18db0b510caae1c3787e695",
+          "algorithm": "HMAC-SHA256",
+          "state": {
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "revokedAt": null,
+            "spendToDate": {
+              "amount": 6900,
+              "currency": "USD"
+            },
+            "transactionCount": 2
+          },
+          "remaining": {
+            "amount": 5100,
+            "currency": "USD"
+          }
+        },
+        "ledger": [
+          {
+            "id": "f987a995-3f6f-4344-aba7-cec612cfa186",
+            "at": "2026-10-20T17:21:12.193Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "pay_order",
+            "proposal": {
+              "action": "pay_order",
+              "amount": 4500,
+              "currency": "USD",
+              "merchant": "acme-supplies",
+              "description": "capture order ORD00000000009002"
+            },
+            "decision": {
+              "allowed": true,
+              "code": "ALLOWED",
+              "reason": "approved by a human (approval 94d29b92)",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"pay_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 4500 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "4500 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 51.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": false,
+                  "detail": "4500 exceeds the auto-approval threshold of 4000, so a human must confirm"
+                },
+                {
+                  "rule": "human-approval",
+                  "passed": true,
+                  "detail": "approval 94d29b92-a56c-434f-8d87-e8d76663e491"
+                }
+              ],
+              "requiresApproval": false
+            },
+            "externalRef": "ORD00000000009002",
+            "result": "{\"id\":\"ORD00000000009002\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000003\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"45.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+          },
+          {
+            "id": "65b22ada-38ff-4634-8459-48137128ce99",
+            "at": "2026-10-20T17:21:03.212Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "pay_order",
+            "proposal": {
+              "action": "pay_order",
+              "amount": 9900,
+              "currency": "USD",
+              "merchant": "sketchy-deals",
+              "description": "capture order ORD00000000009001"
+            },
+            "decision": {
+              "allowed": false,
+              "code": "MERCHANT_NOT_ALLOWED",
+              "reason": "merchant \"sketchy-deals\" is not in the permitted set [acme-supplies]",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"pay_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": false,
+                  "detail": "merchant \"sketchy-deals\" is not in the permitted set [acme-supplies]"
+                }
+              ]
+            }
+          },
+          {
+            "id": "5ac2208d-3f8d-4403-99da-630c3fb87ede",
+            "at": "2026-10-20T17:20:55.487Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "pay_order",
+            "proposal": {
+              "action": "pay_order",
+              "amount": 4500,
+              "currency": "USD",
+              "merchant": "acme-supplies",
+              "description": "capture order ORD00000000009002"
+            },
+            "decision": {
+              "allowed": false,
+              "code": "REQUIRES_HUMAN_APPROVAL",
+              "reason": "a human must approve this payment: it exceeds the USD 40.00 auto-approval threshold",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"pay_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 4500 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "4500 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 51.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": false,
+                  "detail": "4500 exceeds the auto-approval threshold of 4000, so a human must confirm"
+                }
+              ],
+              "requiresApproval": true
+            }
+          },
+          {
+            "id": "81c25fe0-2695-489b-b884-d0b4c7f51650",
+            "at": "2026-10-20T17:19:43.655Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "pay_order",
+            "proposal": {
+              "action": "pay_order",
+              "amount": 2400,
+              "currency": "USD",
+              "merchant": "acme-supplies",
+              "description": "capture order ORD00000000000001"
+            },
+            "decision": {
+              "allowed": true,
+              "code": "ALLOWED",
+              "reason": "permitted: USD 24.00 at acme-supplies",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"pay_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 2400 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "2400 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 96.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": true,
+                  "detail": "2400 is at or below the 4000 auto-approval threshold"
+                },
+                {
+                  "rule": "decision",
+                  "passed": true,
+                  "detail": "all 14 rules passed"
+                }
+              ]
+            },
+            "externalRef": "ORD00000000000001",
+            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000002\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+          },
+          {
+            "id": "011021b9-7121-436a-bc94-c5dfceef3c85",
+            "at": "2026-10-20T17:19:36.521Z",
+            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "agentId": "agent-procurement-01",
+            "action": "create_order",
+            "proposal": {
+              "action": "create_order",
+              "amount": 2400,
+              "currency": "USD",
+              "merchant": "acme-supplies"
+            },
+            "decision": {
+              "allowed": true,
+              "code": "ALLOWED",
+              "reason": "permitted: USD 24.00 at acme-supplies",
+              "checks": [
+                {
+                  "rule": "signature",
+                  "passed": true,
+                  "detail": "HMAC-SHA256 over canonical claims matches"
+                },
+                {
+                  "rule": "validity",
+                  "passed": true,
+                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                },
+                {
+                  "rule": "revocation",
+                  "passed": true,
+                  "detail": "mandate is live and has not been revoked"
+                },
+                {
+                  "rule": "tool-allowlist",
+                  "passed": true,
+                  "detail": "tool \"create_order\" is a known spend tool"
+                },
+                {
+                  "rule": "merchant-allowlist",
+                  "passed": true,
+                  "detail": "merchant \"acme-supplies\" is permitted"
+                },
+                {
+                  "rule": "merchant-denylist",
+                  "passed": true,
+                  "detail": "no merchant denylist on this mandate"
+                },
+                {
+                  "rule": "category-allowlist",
+                  "passed": true,
+                  "detail": "no category restriction on this mandate"
+                },
+                {
+                  "rule": "amount-present",
+                  "passed": true,
+                  "detail": "amount 2400 minor units is a positive integer"
+                },
+                {
+                  "rule": "currency",
+                  "passed": true,
+                  "detail": "currency matches the mandate budget (USD)"
+                },
+                {
+                  "rule": "max-per-transaction",
+                  "passed": true,
+                  "detail": "2400 is within the per-transaction ceiling of 5000"
+                },
+                {
+                  "rule": "max-transactions",
+                  "passed": true,
+                  "detail": "no transaction-count limit on this mandate"
+                },
+                {
+                  "rule": "budget",
+                  "passed": true,
+                  "detail": "leaves USD 96.00 of budget"
+                },
+                {
+                  "rule": "approval-threshold",
+                  "passed": true,
+                  "detail": "2400 is at or below the 4000 auto-approval threshold"
+                },
+                {
+                  "rule": "decision",
+                  "passed": true,
+                  "detail": "all 14 rules passed"
+                }
+              ]
+            },
+            "externalRef": "ORD00000000000001",
+            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"CREATED\",\"purchase_units\":[{\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+          }
+        ],
+        "summary": {
+          "total": 5,
+          "allowed": 3,
+          "denied": 1,
+          "pendingApproval": 1,
+          "denialReasons": {
+            "REQUIRES_HUMAN_APPROVAL": 1,
+            "MERCHANT_NOT_ALLOWED": 1
+          }
+        },
+        "approvals": [],
+        "trust": [
+          {
+            "agentId": "agent-procurement-01",
+            "score": 80,
+            "tier": "trusted",
+            "factors": [
+              {
+                "factor": "activity",
+                "impact": 15,
+                "detail": "42 prior transactions establish a durable relationship"
+              },
+              {
+                "factor": "disputes",
+                "impact": 0,
+                "detail": "no disputes on record"
+              },
+              {
+                "factor": "refunds",
+                "impact": 0,
+                "detail": "2 refunds across 42 transactions (4.8% refund rate)"
+              },
+              {
+                "factor": "tenure",
+                "impact": 10,
+                "detail": "known to this merchant for over a year (963 days)"
+              },
+              {
+                "factor": "mandate",
+                "impact": 5,
+                "detail": "agent currently holds an unexpired, unrevoked mandate from a named principal"
+              }
+            ],
+            "signals": {
+              "agentId": "agent-procurement-01",
+              "transactionCount": 42,
+              "disputeCount": 0,
+              "refundCount": 2,
+              "totalVolume": 128000,
+              "currency": "USD",
+              "firstSeenAt": "2024-03-01T00:00:00.000Z",
+              "mandateActive": true
+            }
+          },
+          {
+            "agentId": "agent-guest-77",
+            "score": 18,
+            "tier": "high-risk",
+            "factors": [
+              {
+                "factor": "activity",
+                "impact": 8,
+                "detail": "3 prior transactions establish an emerging track record"
+              },
+              {
+                "factor": "disputes",
+                "impact": -40,
+                "detail": "2 disputes across 3 transactions (66.7% dispute rate)"
+              },
+              {
+                "factor": "refunds",
+                "impact": 0,
+                "detail": "no refunds on record"
+              },
+              {
+                "factor": "tenure",
+                "impact": 0,
+                "detail": "known to this merchant for 22 days"
+              },
+              {
+                "factor": "mandate",
+                "impact": 0,
+                "detail": "agent holds no active mandate with this merchant"
+              }
+            ],
+            "signals": {
+              "agentId": "agent-guest-77",
+              "transactionCount": 3,
+              "disputeCount": 2,
+              "refundCount": 0,
+              "totalVolume": 4200,
+              "currency": "USD",
+              "firstSeenAt": "2026-09-28T00:00:00.000Z",
+              "mandateActive": false
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
