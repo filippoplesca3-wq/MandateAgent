@@ -1,0 +1,47 @@
+{
+  "name": "agent-mandate",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Scoped delegation and verifiable trust for AI agent commerce on PayPal.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "tsx watch src/server/index.ts",
+    "dev:web": "vite",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "tsx scripts/e2e.ts",
+    "live:check": "tsx scripts/live-check.ts",
+    "build": "npm run typecheck && vite build",
+    "start": "tsx src/server/index.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^4.0.100",
+    "@paypal/agent-toolkit": "^1.11.0",
+    "ag-grid-community": "^36.2.0",
+    "ag-grid-react": "^36.2.0",
+    "ai": "^7.0.144",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.7",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
+  }
+}
