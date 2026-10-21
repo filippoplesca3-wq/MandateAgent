@@ -69,6 +69,7 @@ export const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = Object.freeze({
   record_refund_for_invoice: "spend",
 
   // --- mutate ---------------------------------------------------------------
+  create_invoice: "mutate",
   send_invoice: "mutate",
   create_conditional_rules_for_invoice: "mutate",
   setup_invoice_auto_reminders: "mutate",

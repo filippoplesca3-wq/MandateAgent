@@ -148,7 +148,10 @@ than trusting the `itemTotal` the model supplied.
 
 **Unknown tools fail closed.** All 47 toolkit tools are classified as
 `read`, `spend` or `mutate`. A tool that is not on the list is denied by
-default, so a toolkit upgrade cannot silently widen an agent's authority.
+default, so a toolkit upgrade cannot silently widen an agent's authority. A
+matrix test calls every one of the 47 tools through the guard and asserts the
+class it was given — it is how `create_invoice` was found missing from the
+allowlist.
 
 Money is held in integer minor units throughout. The budget moves in exactly one
 place — after a successful `pay_order` — and a test asserts that the spend
@@ -194,7 +197,7 @@ agent-guest-77         18  high-risk    +8 activity   -40 disputes +0 refunds
 ## Tests
 
 ```bash
-npm test          # 130 tests, 8 files
+npm test          # 133 tests, 9 files
 npm run typecheck
 npm run e2e       # full agent run, prints the ledger
 ```
