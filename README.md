@@ -74,6 +74,83 @@ and a
 [Gemini key](https://aistudio.google.com/apikey). The mode badge in the header
 switches from `simulated` to `live`.
 
+### Live sandbox checkout
+
+With sandbox credentials present, the console also exposes a **Live sandbox
+payment** panel. It creates a $2.00 order server-side through the guard, the
+payer approves it in the browser with the PayPal JS SDK v6 — only the public
+client id is used, never the secret — and the server captures it through
+`pay_order`. The ledger and the mandate budget move exactly as they do for the
+agent.
+
+PayPal identifies the seller by merchant id or account email, while a mandate
+names a merchant such as `acme-supplies`. Set `PAYPAL_MERCHANT_ALIASES` to map
+one to the other, or the capture is refused as `MERCHANT_NOT_ALLOWED`:
+
+```
+PAYPAL_MERCHANT_ALIASES=ABC123XYZ=acme-supplies,business@example.com=acme-supplies
+```
+
+The panel is hidden in simulated and replay modes, so the hosted demo never
+shows a button that cannot work.
+
+### Declined payments
+
+Happy paths are easy; declines are where budgets usually leak. PayPal's sandbox
+accepts a `PayPal-Mock-Response` header that forces the next capture to fail:
+
+```bash
+npm run decline:check
+```
+
+The script creates a real $1.00 sandbox order through the guard, asks PayPal to
+decline it with `INSTRUMENT_DECLINED`, and prints the mandate's spend counter
+before and after. PayPal answers HTTP 422, the counter stays at zero, and the
+guard turns that response into `TOOL_ERROR` — a failed capture is never counted
+as spend. The conversion itself is pinned by `tests/guard.test.ts`.
+
+### Webhooks
+
+`POST /api/webhooks/paypal` verifies every delivery with PayPal's
+`/v1/notifications/verify-webhook-signature` endpoint before recording it.
+Unverified deliveries get a 400; if `PAYPAL_WEBHOOK_ID` is unset the route
+answers 503 rather than trusting anything. Verified events are readable at
+`GET /api/webhooks/paypal/events`.
+
+Register the app's webhook in the PayPal dashboard, point it at
+`https://<your-host>/api/webhooks/paypal`, subscribe to
+`PAYMENT.CAPTURE.COMPLETED`, then set `PAYPAL_WEBHOOK_ID`. A webhook is a
+confirmation channel, not an authority: it never moves budget, and the ledger
+stays the source of truth.
+
+### MCP
+
+The same guarded tool set is available over MCP, so any MCP client inherits the
+mandate instead of getting raw PayPal access:
+
+```bash
+npm run mcp
+```
+
+That serves 48 tools on stdio — the 47 PayPal tools plus `get_mandate`, which
+reports the remaining budget and constraints. Every call goes through the same
+guard. Point Claude Desktop, Cursor or another client at it:
+
+```json
+{
+  "mcpServers": {
+    "agent-mandate": {
+      "command": "npx",
+      "args": ["tsx", "src/mcp/main.ts"],
+      "cwd": "/absolute/path/to/agent-mandate"
+    }
+  }
+}
+```
+
+With sandbox credentials present the MCP server uses the live sandbox toolkit.
+Set `PAYPAL_MODE=simulated` for a session that cannot move even sandbox money.
+
 ## Replay: a real run, recorded once
 
 The hosted demo serves a **recording of a real agent run** instead of spending
@@ -197,15 +274,16 @@ agent-guest-77         18  high-risk    +8 activity   -40 disputes +0 refunds
 ## Tests
 
 ```bash
-npm test          # 133 tests, 9 files
+npm test          # 145 tests, 11 files
 npm run typecheck
 npm run e2e       # full agent run, prints the ledger
 ```
 
 The suite covers signature forgery and replay, every policy rule, ledger
 immutability, approval binding and single-use semantics, guard behaviour on
-tool errors, and a contract test that checks the simulator's returned ids
-against the toolkit's real zod schemas.
+tool errors, MCP clients going through the same guard, webhook parsing, and a
+contract test that checks the simulator's returned ids against the toolkit's
+real zod schemas.
 
 ## Configuration
 
@@ -214,6 +292,8 @@ against the toolkit's real zod schemas.
 | `MANDATE_SIGNING_KEY` | yes | HMAC key for mandates. Rotating it invalidates every mandate. |
 | `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` | no | Enables the live sandbox toolkit. |
 | `PAYPAL_ENVIRONMENT` | no | `sandbox` (default) or `live`. |
+| `PAYPAL_MERCHANT_ALIASES` | no | Maps PayPal merchant ids/emails to mandate merchant names, e.g. `ABC123=acme-supplies`. |
+| `PAYPAL_WEBHOOK_ID` | no | Enables signature-checked webhooks on `POST /api/webhooks/paypal`. |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | no | Enables the autonomous agent. |
 | `AGENT_MODEL` | no | Pin one model instead of using the fallback list. |
 | `REPLAY_FILE` | no | Serve a recorded run instead of calling any API. |
@@ -231,10 +311,13 @@ src/core/      types, canonical JSON, mandate signing, policy, ledger, store, tr
 src/paypal/    guarded tools, simulator, live toolkit wiring
 src/agent/     AI SDK adapter, system prompt, model fallback
 src/server/    Express API, SSE stream, replay player
+src/mcp/       the same guarded tools served over MCP stdio
 src/web/       React console, AG Grid ledger
 replays/       recorded run served by the hosted demo
 tests/         vitest suite
 scripts/e2e.ts end-to-end run printed to the terminal
+scripts/live-check.ts one live sandbox order through the guard
+scripts/decline-check.ts forced decline, proving no budget moves
 scripts/record.ts one real run, captured as replay frames
 ```
 

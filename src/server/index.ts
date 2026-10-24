@@ -16,7 +16,9 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import express from "express"
 import { Store } from "../core/store.js"
+import { parseMerchantAliases } from "../paypal/env.js"
 import { createPayPalTools, paypalConfigFromEnv } from "../paypal/index.js"
+import { verifyWebhookSignature, type WebhookHeaders } from "../paypal/webhook.js"
 import { createApp } from "./app.js"
 import { AGENT_ID, MERCHANT, SEED_ORDERS, issueDemoMandate, seedTrust } from "./demo.js"
 import { ReplayPlayer, loadReplayFile } from "./replay.js"
@@ -45,12 +47,54 @@ const replay = replayFile
   ? new ReplayPlayer(loadReplayFile(replayFile), Number.isFinite(frameMs) ? frameMs : 1_200)
   : undefined
 
-const paypal = replay
-  ? createPayPalTools({ sandbox: true }, { merchantId: MERCHANT, seedOrders: SEED_ORDERS })
-  : createPayPalTools(paypalConfigFromEnv(), { merchantId: MERCHANT, seedOrders: SEED_ORDERS })
+// PAYPAL_MODE=simulated runs the real agent against local tool doubles even
+// when credentials exist — useful for demos where no sandbox order should move.
+const forcedSimulated = process.env["PAYPAL_MODE"]?.toLowerCase() === "simulated"
+const simulated = replay !== undefined || forcedSimulated
 
-const mandateId = issueDemoMandate(store, 24 * 60 * 60 * 1_000)
+const paypalConfig = paypalConfigFromEnv()
+const merchantAliases = parseMerchantAliases(process.env["PAYPAL_MERCHANT_ALIASES"])
+
+// Webhooks can only be verified when the app knows its own webhook id and can
+// authenticate to PayPal. Without both, the endpoint reports 503 rather than
+// accepting unverified deliveries.
+const webhookId = process.env["PAYPAL_WEBHOOK_ID"]?.trim()
+const paypalClientId = paypalConfig.clientId
+const paypalClientSecret = paypalConfig.clientSecret
+const webhook =
+  !simulated && webhookId && paypalClientId && paypalClientSecret
+    ? {
+        id: webhookId,
+        verify: (headers: WebhookHeaders, event: unknown) =>
+          verifyWebhookSignature(
+            {
+              clientId: paypalClientId,
+              clientSecret: paypalClientSecret,
+              sandbox: paypalConfig.sandbox,
+            },
+            webhookId,
+            headers,
+            event,
+          ),
+      }
+    : undefined
+
+const paypal = simulated
+  ? createPayPalTools({ sandbox: true }, { merchantId: MERCHANT, seedOrders: SEED_ORDERS })
+  : createPayPalTools(paypalConfig, { merchantId: MERCHANT, seedOrders: SEED_ORDERS })
+
+// A recorded mandate is already spent down. Issuing a fresh one and charging
+// it with the same amount keeps a hosted dry run consistent with the numbers
+// on screen. The longer TTL avoids a hosted demo expiring while it idles.
+const mandateId = issueDemoMandate(store, replay ? 30 * 24 * 60 * 60 * 1_000 : 24 * 60 * 60 * 1_000)
 seedTrust(store)
+
+if (replay) {
+  const final = replay.run.frames[replay.run.frames.length - 1]?.snapshot.mandate
+  if (final && final.state.spendToDate.amount > 0) {
+    store.commitSpend(mandateId, final.state.spendToDate.amount)
+  }
+}
 
 const { app } = createApp({
   store,
@@ -59,8 +103,16 @@ const { app } = createApp({
   agentId: AGENT_ID,
   merchantId: MERCHANT,
   mode: replay ? "replay" : paypal.mode,
-  note: replay ? "Serving a recorded run." : paypal.note,
+  note: replay
+    ? "Serving a recorded run."
+    : forcedSimulated
+      ? "Simulated PayPal: PAYPAL_MODE=simulated. Real Gemini, local tool calls."
+      : paypal.note,
   ...(process.env["AGENT_MODEL"] ? { model: process.env["AGENT_MODEL"] } : {}),
+  ...(!simulated && paypalConfig.clientId ? { paypalClientId: paypalConfig.clientId } : {}),
+  ...(!simulated ? { paypalSandbox: paypalConfig.sandbox } : {}),
+  ...(merchantAliases ? { merchantAliases } : {}),
+  ...(webhook ? { webhook } : {}),
   ...(replay ? { replay } : {}),
 })
 
@@ -88,6 +140,19 @@ app.listen(port, () => {
     } else {
       console.log("Gemini: no server key; visitors must supply one to run the agent")
     }
+    if (paypalConfig.sandbox && paypalConfig.clientId) {
+      console.log("Live sandbox checkout: enabled (browser approval, 2.00 USD)")
+      if (!merchantAliases) {
+        console.log(
+          "Hint: set PAYPAL_MERCHANT_ALIASES so a live capture matches the mandate's merchant name.",
+        )
+      }
+    }
+    console.log(
+      webhook
+        ? "Webhooks: signature verification enabled on POST /api/webhooks/paypal"
+        : "Webhooks: disabled (set PAYPAL_WEBHOOK_ID and add the app's webhook in PayPal)",
+    )
   }
   console.log(`Mandate: ${mandateId}`)
   console.log("=".repeat(70))

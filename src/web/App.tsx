@@ -33,9 +33,11 @@ const gridTheme = themeQuartz.withParams({
   oddRowBackgroundColor: "rgba(255,255,255,0.015)",
   fontFamily: "inherit",
   fontSize: "13px",
-  headerFontSize: "11px",
+  headerFontSize: "10.5px",
   headerFontWeight: 600,
-  spacing: 5,
+  headerHeight: 40,
+  rowHeight: 40,
+  spacing: 6,
   wrapperBorderRadius: 0,
 })
 
@@ -170,20 +172,33 @@ function MandateCard(props: {
 
   const { claims, state, remaining } = mandate
   const constraints = claims.constraints
+  const revoked = Boolean(state.revokedAt)
+  const expired = Date.parse(claims.expiresAt) <= Date.now()
 
   return (
     <Panel
       title="Mandate"
       subtitle={`${claims.principal} → ${claims.agentId}`}
       actions={
-        <button
-          className="btn ghost sm"
-          onClick={props.onRevoke}
-          disabled={props.busy || props.readOnly}
-          title={props.readOnly ? "This is a recording, so it cannot be changed." : undefined}
-        >
-          Revoke
-        </button>
+        revoked || expired ? (
+          <button
+            className="btn primary sm"
+            onClick={props.onIssue}
+            disabled={props.busy || props.readOnly}
+            title={props.readOnly ? "This is a recording, so it cannot be changed." : undefined}
+          >
+            New mandate
+          </button>
+        ) : (
+          <button
+            className="btn ghost sm"
+            onClick={props.onRevoke}
+            disabled={props.busy || props.readOnly}
+            title={props.readOnly ? "This is a recording, so it cannot be changed." : undefined}
+          >
+            Revoke
+          </button>
+        )
       }
     >
       <p className="purpose">{claims.purpose}</p>
@@ -201,7 +216,15 @@ function MandateCard(props: {
         </div>
         <div>
           <dt>Status</dt>
-          <dd>{state.revokedAt ? <Chip tone="red">revoked</Chip> : <Chip tone="green">active</Chip>}</dd>
+          <dd>
+            {revoked ? (
+              <Chip tone="red">revoked</Chip>
+            ) : expired ? (
+              <Chip tone="amber">expired</Chip>
+            ) : (
+              <Chip tone="green">active</Chip>
+            )}
+          </dd>
         </div>
       </dl>
 
@@ -455,6 +478,358 @@ function StepRow(props: { toolName: string; output?: string }) {
 }
 
 // ---------------------------------------------------------------------------
+// Dry run
+// ---------------------------------------------------------------------------
+
+interface Verdict {
+  allowed: boolean
+  code: string
+  reason: string
+  requiresApproval?: boolean
+}
+
+const TRY_PRESETS = [
+  { label: "$12 · acme-supplies", amount: "12.00", merchant: "acme-supplies" },
+  { label: "$45 · acme-supplies", amount: "45.00", merchant: "acme-supplies" },
+  { label: "$200 · acme-supplies", amount: "200.00", merchant: "acme-supplies" },
+  { label: "$9 · sketchy-deals", amount: "9.00", merchant: "sketchy-deals" },
+]
+
+/**
+ * The one interactive thing on the hosted demo that needs neither a Gemini key
+ * nor a PayPal account: a dry run against the current mandate. It calls the
+ * same evaluator the guard uses and returns its verdict, recording nothing.
+ */
+function TryPanel() {
+  const [amount, setAmount] = useState("12.00")
+  const [merchant, setMerchant] = useState("acme-supplies")
+  const [busy, setBusy] = useState(false)
+  const [verdict, setVerdict] = useState<Verdict | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const check = useCallback(async (nextAmount: string, nextMerchant: string) => {
+    setBusy(true)
+    setError(null)
+    try {
+      const response = await api<{ ok: boolean; decision?: Verdict; error?: string }>(
+        "/api/evaluate",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action: "create_order",
+            amount: nextAmount,
+            merchant: nextMerchant,
+          }),
+        },
+      )
+      if (!response.decision) throw new Error(response.error ?? "No decision returned")
+      setVerdict(response.decision)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught))
+    } finally {
+      setBusy(false)
+    }
+  }, [])
+
+  const preset = (value: string, shop: string) => {
+    setAmount(value)
+    setMerchant(shop)
+    void check(value, shop)
+  }
+
+  const tone = verdict
+    ? verdict.allowed
+      ? "allowed"
+      : verdict.requiresApproval
+        ? "escalated"
+        : "denied"
+    : "idle"
+  const headline = { allowed: "ALLOWED", escalated: "NEEDS APPROVAL", denied: "DENIED", idle: "" }[tone]
+
+  return (
+    <Panel
+      title="Test a payment"
+      subtitle="Dry run against the mandate. Nothing moves, no key needed."
+    >
+      <div className="try-chips">
+        {TRY_PRESETS.map((item) => (
+          <button
+            key={item.label}
+            className="chip"
+            type="button"
+            disabled={busy}
+            onClick={() => preset(item.amount, item.merchant)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="try-fields">
+        <label className="try-field">
+          <span>Amount (USD)</span>
+          <input
+            value={amount}
+            inputMode="decimal"
+            spellCheck={false}
+            disabled={busy}
+            onChange={(event) => setAmount(event.target.value)}
+          />
+        </label>
+        <label className="try-field">
+          <span>Merchant</span>
+          <input
+            value={merchant}
+            spellCheck={false}
+            disabled={busy}
+            onChange={(event) => setMerchant(event.target.value)}
+          />
+        </label>
+      </div>
+
+      <button className="btn primary" type="button" disabled={busy} onClick={() => void check(amount, merchant)}>
+        {busy ? "Checking…" : "Check payment"}
+      </button>
+
+      {error ? <div className="alert error">{error}</div> : null}
+
+      {verdict ? (
+        <div className={`verdict ${tone}`}>
+          <span className="verdict-label">{headline}</span>
+          <code>{verdict.code}</code>
+          <p>{verdict.reason}</p>
+        </div>
+      ) : null}
+    </Panel>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Live sandbox checkout
+// ---------------------------------------------------------------------------
+
+interface CheckoutConfig {
+  enabled: boolean
+  clientId: string | null
+  currency: string
+  amount: number
+}
+
+interface PayPalSdk {
+  findEligibleMethods: (options: { currencyCode: string }) => Promise<{
+    isEligible: (method: string) => boolean
+  }>
+  createPayPalOneTimePaymentSession: (options: {
+    onApprove: (data: { orderId: string }) => Promise<void>
+    onCancel: () => void
+    onError: (error: { message?: string }) => void
+  }) => {
+    start: (
+      options: { presentationMode: "auto" },
+      order: Promise<{ orderId: string }>,
+    ) => Promise<void>
+  }
+}
+
+interface PayPalGlobal {
+  createInstance: (options: {
+    clientId: string
+    components: string[]
+    pageType?: string
+  }) => Promise<PayPalSdk>
+}
+
+let paypalSdkLoader: Promise<void> | null = null
+
+/** Loads the v6 core script once. Sandbox and production are different files. */
+function loadPayPalSdk(): Promise<void> {
+  if (paypalSdkLoader) return paypalSdkLoader
+
+  paypalSdkLoader = new Promise((resolve, reject) => {
+    const script = document.createElement("script")
+    script.src = "https://www.sandbox.paypal.com/web-sdk/v6/core"
+    script.async = true
+    script.onload = () => resolve()
+    script.onerror = () => {
+      paypalSdkLoader = null
+      reject(new Error("The PayPal SDK could not be loaded."))
+    }
+    document.head.appendChild(script)
+  })
+
+  return paypalSdkLoader
+}
+
+/**
+ * A real sandbox purchase, driven from the browser.
+ *
+ * The order is created and captured server-side through the guard, so the
+ * browser never states a price. The only thing the browser does is ask the
+ * payer to approve: the JS SDK hands back an order id, never a client secret.
+ */
+function CheckoutPanel(props: { active: boolean }) {
+  const [config, setConfig] = useState<CheckoutConfig | null>(null)
+  const [status, setStatus] = useState<"loading" | "ready" | "starting" | "capturing" | "paid" | "error">(
+    "loading",
+  )
+  const [message, setMessage] = useState<string | null>(null)
+  const [orderId, setOrderId] = useState<string | null>(null)
+  const host = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    api<CheckoutConfig>("/api/checkout/config")
+      .then((next) => {
+        if (!cancelled) setConfig(next)
+      })
+      .catch((caught) => {
+        if (cancelled) return
+        setStatus("error")
+        setMessage(caught instanceof Error ? caught.message : String(caught))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    const clientId = config?.clientId
+    const container = host.current
+    if (!props.active) return
+    if (!config?.enabled || !clientId || !container) return
+
+    let cancelled = false
+    let button: HTMLElement | null = null
+
+    const createOrder = async (): Promise<{ orderId: string }> => {
+      const created = await api<{ orderId: string }>("/api/checkout/order", {
+        method: "POST",
+        body: JSON.stringify({}),
+      })
+      setOrderId(created.orderId)
+      return { orderId: created.orderId }
+    }
+
+    const boot = async (): Promise<void> => {
+      await loadPayPalSdk()
+      if (cancelled) return
+
+      const paypal = (window as unknown as { paypal?: PayPalGlobal }).paypal
+      if (!paypal) throw new Error("The PayPal SDK did not expose its namespace.")
+
+      const sdk = await paypal.createInstance({
+        clientId,
+        components: ["paypal-payments"],
+        pageType: "checkout",
+      })
+      if (cancelled) return
+
+      const methods = await sdk.findEligibleMethods({ currencyCode: config.currency })
+      if (cancelled) return
+      if (!methods.isEligible("paypal")) {
+        throw new Error("PayPal checkout is not eligible for this sandbox account.")
+      }
+
+      const session = sdk.createPayPalOneTimePaymentSession({
+        onApprove: async ({ orderId: approvedId }) => {
+          setStatus("capturing")
+          setMessage("Approved. Capturing through the mandate…")
+          try {
+            await api("/api/checkout/capture", {
+              method: "POST",
+              body: JSON.stringify({ orderId: approvedId }),
+            })
+            setOrderId(approvedId)
+            setStatus("paid")
+            setMessage("Captured. The spend is in the ledger and the budget has moved.")
+          } catch (caught) {
+            setStatus("error")
+            setMessage(caught instanceof Error ? caught.message : String(caught))
+          }
+        },
+        onCancel: () => {
+          setStatus("ready")
+          setMessage("Checkout cancelled. Nothing was captured.")
+        },
+        onError: (error) => {
+          setStatus("error")
+          setMessage(error.message ?? "PayPal reported an error during checkout.")
+        },
+      })
+
+      const element = document.createElement("paypal-button")
+      element.setAttribute("type", "pay")
+      element.hidden = true
+      element.addEventListener("click", () => {
+        setStatus("starting")
+        setMessage("Creating the sandbox order and opening PayPal…")
+        void session.start({ presentationMode: "auto" }, createOrder()).catch((caught: unknown) => {
+          setStatus("error")
+          setMessage(caught instanceof Error ? caught.message : String(caught))
+        })
+      })
+
+      container.appendChild(element)
+      element.hidden = false
+      button = element
+      setStatus("ready")
+    }
+
+    void boot().catch((caught: unknown) => {
+      if (cancelled) return
+      setStatus("error")
+      setMessage(caught instanceof Error ? caught.message : String(caught))
+    })
+
+    return () => {
+      cancelled = true
+      if (button?.parentElement === container) container.removeChild(button)
+    }
+  }, [config, props.active])
+
+  if (!config?.enabled || !config.clientId) return null
+
+  return (
+    <Panel
+      title="Live sandbox payment"
+      subtitle="A real PayPal order, approved by you and captured by the mandate."
+    >
+      <p className="checkout-note">
+        Moves <strong>{minor(config.amount, config.currency)}</strong> of sandbox money. Sign in with
+        a PayPal <em>sandbox personal</em> account when the checkout opens.
+      </p>
+
+      {props.active ? (
+        <>
+          <p className="checkout-caption">Pay with PayPal</p>
+          <div className="checkout-button" ref={host} />
+
+          {message ? (
+            <p
+              className={`checkout-status ${status === "paid" ? "paid" : status === "error" ? "error" : ""}`}
+            >
+              {message}
+            </p>
+          ) : status === "loading" ? (
+            <p className="checkout-status">Loading PayPal…</p>
+          ) : null}
+
+          {orderId ? (
+            <p className="checkout-order">
+              Order <code>{orderId}</code>
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <p className="checkout-status error">
+          This mandate is no longer active. Issue a new mandate to enable live checkout.
+        </p>
+      )}
+    </Panel>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Trust and approvals
 // ---------------------------------------------------------------------------
 
@@ -566,18 +941,23 @@ interface LedgerRow {
   merchant: string
   amount: number | null
   currency: string
-  verdict: "ALLOWED" | "DENIED" | "APPROVAL"
+  verdict: "ALLOWED" | "DENIED" | "APPROVAL" | "FAILED"
   code: string
   reason: string
   ref: string
 }
 
 function toRow(entry: LedgerEntry): LedgerRow {
-  const verdict: LedgerRow["verdict"] = entry.decision.allowed
-    ? "ALLOWED"
-    : entry.decision.requiresApproval
-      ? "APPROVAL"
-      : "DENIED"
+  // An allowed call can still fail at PayPal. The ledger must say so, rather
+  // than reporting a capture that never happened as a success.
+  const failed = (entry.result ?? "").startsWith("TOOL_ERROR")
+  const verdict: LedgerRow["verdict"] = failed
+    ? "FAILED"
+    : entry.decision.allowed
+      ? "ALLOWED"
+      : entry.decision.requiresApproval
+        ? "APPROVAL"
+        : "DENIED"
 
   return {
     id: entry.id,
@@ -755,6 +1135,7 @@ export function App() {
 
   const mandate = state.mandate
   const revoked = Boolean(mandate?.state.revokedAt)
+  const expired = Boolean(mandate && Date.parse(mandate.claims.expiresAt) <= Date.now())
   const waiting = state.approvals.filter((item) => item.status === "pending").length
   const readOnly = state.mode === "replay"
 
@@ -804,6 +1185,10 @@ export function App() {
         <div className="banner danger">
           This mandate has been revoked. Every call is refused, including reads.
         </div>
+      ) : expired ? (
+        <div className="banner">
+          This mandate has expired. Issue a new one to keep going.
+        </div>
       ) : null}
 
       {actionError ? <div className="alert error wide">{actionError}</div> : null}
@@ -820,6 +1205,9 @@ export function App() {
         <RunPanel state={state} replay={state.replay} />
 
         <div className="side">
+          <CheckoutPanel active={!revoked && !expired} />
+          <TryPanel />
+
           <ApprovalsPanel
             approvals={state.approvals}
             busy={busy}

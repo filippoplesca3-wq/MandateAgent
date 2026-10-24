@@ -16,6 +16,7 @@ interface SetupOptions {
   constraints?: MandateConstraints
   seedOrders?: SimulatedOrder[]
   extraTools?: ToolSet
+  merchantAliases?: Record<string, string>
 }
 
 function setup(options: SetupOptions = {}) {
@@ -39,6 +40,7 @@ function setup(options: SetupOptions = {}) {
     mandateId: envelope.claims.id,
     agentId: "agent-procurement-01",
     merchantId: MERCHANT,
+    ...(options.merchantAliases ? { merchantAliases: options.merchantAliases } : {}),
   })
 
   return { store, mandateId: envelope.claims.id, tools }
@@ -185,6 +187,93 @@ describe("guard â€” pay_order", () => {
     expect(again.ok).toBe(false)
     expect(again.code).toBe("TOOL_ERROR")
     expect(remaining(store, mandateId)).toBe(4_000)
+  })
+})
+
+describe("guard — live toolkit responses", () => {
+  const LIVE_ORDER = "ORDLIVE00000000001"
+  const LIVE_MERCHANT_ID = "HM98ZL79EKJ6Q"
+
+  function liveTools(capture: unknown): ToolSet {
+    return {
+      get_order: {
+        parameters: z.object({ id: z.string() }),
+        // The real toolkit returns JSON text from get_order, not an object.
+        execute: async () =>
+          JSON.stringify({
+            id: LIVE_ORDER,
+            status: "APPROVED",
+            purchase_units: [
+              {
+                amount: { currency_code: "USD", value: "2.00" },
+                payee: { merchant_id: LIVE_MERCHANT_ID },
+              },
+            ],
+          }),
+      },
+      pay_order: {
+        parameters: z.object({ id: z.string() }),
+        execute: async () => capture,
+      },
+    }
+  }
+
+  it("reads a JSON-string order and maps PayPal's merchant id to the mandate's name", async () => {
+    const { store, mandateId, tools } = setup({
+      constraints: { allowMerchants: [MERCHANT] },
+      extraTools: liveTools(JSON.stringify({ id: LIVE_ORDER, status: "COMPLETED" })),
+      merchantAliases: { [LIVE_MERCHANT_ID.toLowerCase()]: MERCHANT },
+    })
+
+    const result = await call(tools, "pay_order", { id: LIVE_ORDER })
+    expect(result.ok).toBe(true)
+    expect(result.code).toBe("ALLOWED")
+    expect(remaining(store, mandateId)).toBe(200)
+
+    const entry = store.ledger.list()[0]
+    expect(entry?.proposal.amount).toBe(200)
+    expect(entry?.proposal.merchant).toBe(MERCHANT)
+  })
+
+  it("treats a PayPal error delivered as JSON text as a failed call, not a capture", async () => {
+    const { store, mandateId, tools } = setup({
+      seedOrders: [
+        { id: LIVE_ORDER, status: "CREATED", amount: 4_000, currency: "USD", merchant: MERCHANT },
+      ],
+      extraTools: liveTools(
+        JSON.stringify({
+          error: { issue: "INSTRUMENT_DECLINED", description: "The instrument was declined." },
+        }),
+      ),
+    })
+
+    const result = await call(tools, "pay_order", { id: LIVE_ORDER })
+    expect(result.ok).toBe(false)
+    expect(result.code).toBe("TOOL_ERROR")
+    expect(result.reason).toContain("declined")
+    expect(remaining(store, mandateId)).toBe(0)
+  })
+
+  it("treats the live toolkit's own { ok: false } envelope as a failed call", async () => {
+    const { store, mandateId, tools } = setup({
+      seedOrders: [
+        { id: LIVE_ORDER, status: "CREATED", amount: 4_000, currency: "USD", merchant: MERCHANT },
+      ],
+      extraTools: liveTools(
+        JSON.stringify({
+          ok: false,
+          status: 422,
+          code: "PAYPAL_API_HTTP_ERROR",
+          message: "Payer has not yet approved the Order for payment.",
+        }),
+      ),
+    })
+
+    const result = await call(tools, "pay_order", { id: LIVE_ORDER })
+    expect(result.ok).toBe(false)
+    expect(result.code).toBe("TOOL_ERROR")
+    expect(result.reason).toContain("not yet approved")
+    expect(remaining(store, mandateId)).toBe(0)
   })
 })
 

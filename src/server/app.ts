@@ -23,11 +23,25 @@ import type { Store } from "../core/store.js"
 import type { Currency, MandateConstraints, Money } from "../core/types.js"
 import { guardTools } from "../paypal/guard.js"
 import type { ToolSet } from "../paypal/tool-types.js"
+import {
+  hasAllWebhookHeaders,
+  readWebhookEvent,
+  webhookHeadersFrom,
+  type PayPalWebhookEvent,
+  type WebhookHeaders,
+} from "../paypal/webhook.js"
 import type { ReplayPlayer } from "./replay.js"
 import { buildSnapshot, type ServerSnapshot } from "./snapshot.js"
 
 /** PayPal's toolkit only accepts USD, so the demo does too. */
 const CURRENCY: Currency = "USD"
+
+/**
+ * The live checkout moves sandbox money, so it is deliberately tiny. It also
+ * sits below the demo mandate's approval threshold: a visitor clicking "pay"
+ * is the human decision for this purchase.
+ */
+const CHECKOUT_AMOUNT = 200
 
 export interface ServerConfig {
   store: Store
@@ -38,6 +52,16 @@ export interface ServerConfig {
   mode: string
   note: string
   model?: string
+  /** Public client id used by the browser to approve a sandbox order. */
+  paypalClientId?: string
+  /** The live checkout is exposed only against the sandbox. */
+  paypalSandbox?: boolean
+  merchantAliases?: Record<string, string>
+  /** Present when a webhook id and PayPal credentials are configured. */
+  webhook?: {
+    id: string
+    verify: (headers: WebhookHeaders, event: unknown) => Promise<boolean>
+  }
   /** When set, the server serves a recording instead of running the agent. */
   replay?: ReplayPlayer
 }
@@ -51,6 +75,16 @@ export interface ServerHandle {
 
 class BadRequest extends Error {}
 
+/** A checkout the mandate or PayPal refused, reported as a payment error. */
+class CheckoutRefused extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+  ) {
+    super(message)
+  }
+}
+
 export function createApp(config: ServerConfig): ServerHandle {
   const { store, rawTools, agentId, merchantId } = config
   const app = express()
@@ -58,11 +92,24 @@ export function createApp(config: ServerConfig): ServerHandle {
   let mandateId = config.mandateId
   let running = false
 
+  const checkoutEnabled =
+    config.mode === "live" && config.paypalSandbox === true && Boolean(config.paypalClientId)
+  /** Orders this server created, so arbitrary order ids cannot be captured. */
+  const checkoutOrders = new Set<string>()
+  /** Verified webhook deliveries, newest last. Bounded for a long-lived demo. */
+  const webhookEvents = new Map<string, PayPalWebhookEvent>()
+
   let guardCache: { mandateId: string; tools: ToolSet } | null = null
 
   function toolsForCurrentMandate(): ToolSet {
     if (guardCache?.mandateId === mandateId) return guardCache.tools
-    const { tools } = guardTools(rawTools, { store, mandateId, agentId, merchantId })
+    const { tools } = guardTools(rawTools, {
+      store,
+      mandateId,
+      agentId,
+      merchantId,
+      ...(config.merchantAliases ? { merchantAliases: config.merchantAliases } : {}),
+    })
     guardCache = { mandateId, tools }
     return tools
   }
@@ -282,8 +329,10 @@ export function createApp(config: ServerConfig): ServerHandle {
   // Dry run
   // -------------------------------------------------------------------------
 
+  // A dry run is deliberately allowed in replay: it is pure — it records
+  // nothing and calls nothing — and it is the one way a visitor can try the
+  // policy on the hosted demo without a Gemini key.
   app.post("/api/evaluate", (req, res, next) => {
-    if (refuseInReplay(res)) return
     try {
       const body = (req.body ?? {}) as Record<string, unknown>
       const action = stringFrom(body["action"])
@@ -358,6 +407,186 @@ export function createApp(config: ServerConfig): ServerHandle {
   })
 
   // -------------------------------------------------------------------------
+  // Live sandbox checkout
+  // -------------------------------------------------------------------------
+
+  // The PayPal JS SDK needs only the public client id. The secret stays here.
+  app.get("/api/checkout/config", (_req, res) => {
+    res.json({
+      enabled: checkoutEnabled,
+      clientId: config.paypalClientId ?? null,
+      currency: CURRENCY,
+      amount: CHECKOUT_AMOUNT,
+      sandbox: config.paypalSandbox === true,
+    })
+  })
+
+  // Create the order server-side, so the browser never states a price.
+  app.post("/api/checkout/order", (_req, res, next) => {
+    if (!checkoutEnabled) {
+      res.status(409).json({
+        ok: false,
+        error:
+          "Live checkout is only available when the server is connected to the PayPal sandbox.",
+      })
+      return
+    }
+
+    void (async () => {
+      try {
+        if (!store.get(mandateId)) throw new BadRequest("No current mandate. Issue one first.")
+
+        const tool = toolsForCurrentMandate()["create_order"]
+        if (!tool?.execute) throw new Error("create_order is not available")
+
+        const outcome = toolOutcome(
+          await tool.execute(
+            {
+              currencyCode: CURRENCY,
+              items: [
+                {
+                  name: "Agent Mandate live sandbox test",
+                  quantity: 1,
+                  itemCost: CHECKOUT_AMOUNT / 100,
+                  taxPercent: 0,
+                  itemTotal: CHECKOUT_AMOUNT / 100,
+                },
+              ],
+              returnUrl: "https://example.com/paypal/return",
+              cancelUrl: "https://example.com/paypal/cancel",
+            },
+            { toolCallId: "checkout-create", messages: [] },
+          ),
+        )
+
+        if (!outcome.ok) throw new CheckoutRefused(outcome.reason, outcome.code)
+
+        const order = asRecord(outcome.result)
+        const orderId = typeof order?.["id"] === "string" ? order["id"] : undefined
+        if (!orderId) throw new Error("PayPal did not return an order id")
+
+        checkoutOrders.add(orderId)
+        // Bounded memory, and old abandoned orders stop being capturable.
+        while (checkoutOrders.size > 20) {
+          const oldest = checkoutOrders.values().next().value
+          if (oldest === undefined) break
+          checkoutOrders.delete(oldest)
+        }
+
+        res.json({ ok: true, orderId, amount: CHECKOUT_AMOUNT, currency: CURRENCY })
+      } catch (error) {
+        next(error)
+      }
+    })()
+  })
+
+  // The browser reports a payer approval; only then is the order captured.
+  app.post("/api/checkout/capture", (req, res, next) => {
+    if (!checkoutEnabled) {
+      res.status(409).json({
+        ok: false,
+        error:
+          "Live checkout is only available when the server is connected to the PayPal sandbox.",
+      })
+      return
+    }
+
+    const body = (req.body ?? {}) as Record<string, unknown>
+    const orderId = stringFrom(body["orderId"])
+    if (!orderId) {
+      next(new BadRequest("orderId is required"))
+      return
+    }
+    if (!checkoutOrders.has(orderId)) {
+      next(new BadRequest("this order was not created by the live checkout"))
+      return
+    }
+
+    const tool = toolsForCurrentMandate()["pay_order"]
+    if (!tool?.execute) {
+      res.status(502).json({ ok: false, error: "pay_order is not available" })
+      return
+    }
+
+    Promise.resolve(
+      tool.execute({ id: orderId }, { toolCallId: `checkout-capture-${orderId}`, messages: [] }),
+    )
+      .then((raw) => {
+        const outcome = toolOutcome(raw)
+        if (!outcome.ok) {
+          res.status(402).json({
+            ok: false,
+            error: outcome.reason,
+            code: outcome.code,
+            state: snapshot(),
+          })
+          return
+        }
+        checkoutOrders.delete(orderId)
+        res.json({ ok: true, code: outcome.code, order: outcome.result ?? null, state: snapshot() })
+      })
+      .catch(next)
+  })
+
+  // -------------------------------------------------------------------------
+  // Webhooks
+  // -------------------------------------------------------------------------
+
+  // PayPal signs every delivery. The event is only recorded after PayPal's own
+  // verification endpoint confirms the signature.
+  app.post("/api/webhooks/paypal", (req, res, next) => {
+    if (!config.webhook) {
+      res.status(503).json({
+        ok: false,
+        error:
+          "Webhooks are not configured. Set PAYPAL_WEBHOOK_ID and subscribe the app to PAYMENT.CAPTURE.COMPLETED.",
+      })
+      return
+    }
+
+    const headers = webhookHeadersFrom({
+      "paypal-transmission-id": req.header("paypal-transmission-id"),
+      "paypal-transmission-time": req.header("paypal-transmission-time"),
+      "paypal-transmission-sig": req.header("paypal-transmission-sig"),
+      "paypal-cert-url": req.header("paypal-cert-url"),
+      "paypal-auth-algo": req.header("paypal-auth-algo"),
+    })
+
+    if (!hasAllWebhookHeaders(headers)) {
+      res.status(400).json({ ok: false, error: "Missing PayPal transmission headers." })
+      return
+    }
+
+    Promise.resolve(config.webhook.verify(headers, req.body))
+      .then((verified) => {
+        if (!verified) {
+          res.status(400).json({
+            ok: false,
+            error: "PayPal could not verify this webhook signature.",
+          })
+          return
+        }
+
+        const event = readWebhookEvent(req.body)
+        if (event) {
+          webhookEvents.set(event.id, event)
+          while (webhookEvents.size > 50) {
+            const oldest = webhookEvents.keys().next().value
+            if (oldest === undefined) break
+            webhookEvents.delete(oldest)
+          }
+        }
+
+        res.json({ ok: true, verified: true, event })
+      })
+      .catch(next)
+  })
+
+  app.get("/api/webhooks/paypal/events", (_req, res) => {
+    res.json({ ok: true, events: [...webhookEvents.values()] })
+  })
+
+  // -------------------------------------------------------------------------
   // Live updates
   // -------------------------------------------------------------------------
 
@@ -396,6 +625,10 @@ export function createApp(config: ServerConfig): ServerHandle {
   // -------------------------------------------------------------------------
 
   app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    if (error instanceof CheckoutRefused) {
+      res.status(402).json({ ok: false, error: error.message, code: error.code })
+      return
+    }
     if (error instanceof BadRequest) {
       res.status(400).json({ ok: false, error: error.message })
       return
@@ -447,4 +680,63 @@ function integerFrom(value: unknown, label: string): number | undefined {
     throw new BadRequest(`${label} must be a positive integer`)
   }
   return parsed
+}
+
+// ---------------------------------------------------------------------------
+// Tool response shape
+// ---------------------------------------------------------------------------
+
+interface ToolOutcome {
+  ok: boolean
+  code: string
+  reason: string
+  result: unknown
+}
+
+/**
+ * The guard answers with JSON text, and the live toolkit nests its own JSON
+ * text inside it. Both are unwrapped here so callers see one shape.
+ */
+function toolOutcome(raw: unknown): ToolOutcome {
+  const outer = parseObject(raw)
+  if (!outer) {
+    return {
+      ok: false,
+      code: "TOOL_ERROR",
+      reason: "PayPal returned an unreadable response",
+      result: null,
+    }
+  }
+
+  let result = outer["result"]
+  if (typeof result === "string") {
+    try {
+      result = JSON.parse(result)
+    } catch {
+      // Keep the raw text; a caller can still inspect it.
+    }
+  }
+
+  return {
+    ok: outer["ok"] === true,
+    code: typeof outer["code"] === "string" ? outer["code"] : "TOOL_ERROR",
+    reason: typeof outer["reason"] === "string" ? outer["reason"] : "PayPal call failed",
+    result,
+  }
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return null
+  return value as Record<string, unknown>
+}
+
+function parseObject(value: unknown): Record<string, unknown> | null {
+  if (typeof value === "string") {
+    try {
+      value = JSON.parse(value)
+    } catch {
+      return null
+    }
+  }
+  return asRecord(value)
 }

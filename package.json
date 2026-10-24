@@ -17,12 +17,15 @@
     "test:watch": "vitest",
     "e2e": "tsx scripts/e2e.ts",
     "live:check": "tsx scripts/live-check.ts",
+    "decline:check": "tsx scripts/decline-check.ts",
+    "mcp": "tsx src/mcp/main.ts",
     "record": "tsx scripts/record.ts",
     "build": "npm run typecheck && vite build",
     "start": "tsx src/server/index.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.100",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@paypal/agent-toolkit": "^1.11.0",
     "ag-grid-community": "^36.2.0",
     "ag-grid-react": "^36.2.0",

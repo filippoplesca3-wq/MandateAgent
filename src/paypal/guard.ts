@@ -37,6 +37,12 @@ export interface GuardOptions {
    * authenticated merchant.
    */
   merchantId?: string
+  /**
+   * Maps PayPal's own merchant identifiers (merchant id or email address) to
+   * the names a mandate uses. A mandate says "acme-supplies"; PayPal says
+   * "HM98ZL79EKJ6Q". Without this the live path cannot match the two.
+   */
+  merchantAliases?: Record<string, string>
   /** Whether to put read-only calls in the ledger. Off by default. */
   recordReads?: boolean
   onLedgerEntry?: (entry: LedgerEntry) => void
@@ -259,7 +265,9 @@ async function resolveProposal(
       if (details) {
         proposal.amount = details.amount
         proposal.currency = details.currency
-        if (details.merchant) proposal.merchant = details.merchant
+        if (details.merchant) {
+          proposal.merchant = aliasMerchant(details.merchant, options.merchantAliases)
+        }
       }
       proposal.description = proposal.description ?? `capture order ${orderId}`
     }
@@ -449,10 +457,23 @@ function payload(input: GuardPayload): string {
   return JSON.stringify(body)
 }
 
-/** PayPal reports some failures as `{ error: { issue, description } }`. */
+/**
+ * PayPal reports failures in two shapes: `{ error: { issue, description } }`
+ * from some endpoints, and the toolkit's own
+ * `{ ok: false, status, code, message }` envelope from others. Both are
+ * failures, and a failed call must never move the budget.
+ */
 function errorFromResult(value: unknown): string | null {
   const object = asObject(value)
-  if (!object || !("error" in object)) return null
+  if (!object) return null
+
+  if (object.ok === false) {
+    const description = object.message ?? object.description ?? object.code
+    if (typeof description === "string" && description.length > 0) return description
+    return "PayPal returned an error"
+  }
+
+  if (!("error" in object)) return null
 
   const error = asObject(object.error)
   if (error) {
@@ -488,9 +509,27 @@ function preview(value: unknown): string {
   return text.length > 2_000 ? `${text.slice(0, 2_000)}…` : text
 }
 
+/**
+ * PayPal's toolkit returns JSON text from some tools and plain objects from
+ * others, depending on the environment. Both are accepted here: a string that
+ * parses to an object is treated as that object.
+ */
 function asObject(value: unknown): Record<string, unknown> | null {
+  if (typeof value === "string") {
+    try {
+      value = JSON.parse(value)
+    } catch {
+      return null
+    }
+  }
   if (value === null || typeof value !== "object" || Array.isArray(value)) return null
   return value as Record<string, unknown>
+}
+
+function aliasMerchant(value: string, aliases: Record<string, string> | undefined): string {
+  if (!aliases) return value
+  const key = value.trim().toLowerCase()
+  return aliases[key] ?? value
 }
 
 export type { Decision }
