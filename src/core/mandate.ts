@@ -15,10 +15,12 @@
 
 import {
   createHash,
+  createHmac,
   createPrivateKey,
   createPublicKey,
   randomUUID,
   sign,
+  timingSafeEqual,
   type KeyObject,
   verify,
 } from "node:crypto"
@@ -81,6 +83,30 @@ export function signClaims(claims: MandateClaims, key: SigningKey): string {
   return Buffer.from(signed).toString("base64")
 }
 
+/**
+ * Legacy HMAC-SHA256 signing. Kept so envelopes issued before the move to
+ * Ed25519 can still be verified; new mandates are always Ed25519.
+ */
+export function signClaimsHmac(claims: MandateClaims, secret: string): string {
+  return createHmac("sha256", secret).update(canonicalize(claims), "utf8").digest("hex")
+}
+
+function verifyHmac(envelope: MandateEnvelope, secret: string): SignatureResult {
+  const expected = Buffer.from(signClaimsHmac(envelope.claims, secret), "hex")
+  // Old envelopes used hex; accept base64 too so a re-encoded signature does
+  // not fail for the wrong reason.
+  const actual = /^[0-9a-f]{64}$/i.test(envelope.signature)
+    ? Buffer.from(envelope.signature, "hex")
+    : Buffer.from(envelope.signature, "base64")
+
+  if (actual.length !== expected.length) {
+    return { valid: false, reason: "signature does not match the claims" }
+  }
+  return timingSafeEqual(actual, expected)
+    ? { valid: true, reason: "signature verified" }
+    : { valid: false, reason: "signature does not match the claims" }
+}
+
 export function issueMandate(spec: IssueMandateSpec, signingKey: SigningKey): MandateEnvelope {
   assertPositiveMoney(spec.budget, "budget")
 
@@ -131,6 +157,16 @@ export function verifySignature(
   }
   if (typeof envelope.signature !== "string" || envelope.signature.length === 0) {
     return { valid: false, reason: "envelope has no signature" }
+  }
+
+  if (envelope.algorithm === "HMAC-SHA256") {
+    if (typeof key !== "string") {
+      return { valid: false, reason: "HMAC mandate requires the shared secret to verify" }
+    }
+    return verifyHmac(envelope, key)
+  }
+  if (envelope.algorithm !== "Ed25519") {
+    return { valid: false, reason: `unsupported signature algorithm: ${String(envelope.algorithm)}` }
   }
 
   let signature: Buffer

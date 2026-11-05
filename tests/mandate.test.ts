@@ -1,13 +1,16 @@
 import { describe, it, expect } from "vitest"
 import {
+  deriveKeyPair,
   issueMandate,
   newMandateState,
   remainingBudget,
   revokeMandate,
   signClaims,
+  signClaimsHmac,
   validateClaims,
   verifySignature,
 } from "../src/core/mandate.js"
+import type { MandateClaims } from "../src/core/types.js"
 import { EUR, TEST_KEY, makeMandate } from "./helpers.js"
 
 describe("issueMandate", () => {
@@ -120,6 +123,101 @@ describe("verifySignature", () => {
   it("rejects a malformed envelope without throwing", () => {
     expect(verifySignature({} as never, TEST_KEY).valid).toBe(false)
     expect(verifySignature({ claims: {}, signature: "" } as never, TEST_KEY).valid).toBe(false)
+  })
+})
+
+describe("signature coverage", () => {
+  const constraints = {
+    allowMerchants: ["acme-supplies"],
+    denyMerchants: ["blocked-shop"],
+    allowCategories: ["office-supplies"],
+    maxPerTransaction: EUR(5_000),
+    maxTransactions: 10,
+    requireApprovalAbove: EUR(4_000),
+  }
+
+  it("covers every signed claim field", () => {
+    const { envelope } = makeMandate({ constraints })
+    const mutations: Array<[string, (claims: MandateClaims) => void]> = [
+      ["id", (claims) => { claims.id = "00000000-0000-0000-0000-000000000000" }],
+      ["principal", (claims) => { claims.principal = "attacker@example.com" }],
+      ["agentId", (claims) => { claims.agentId = "agent-attacker" }],
+      ["issuedAt", (claims) => { claims.issuedAt = new Date(0).toISOString() }],
+      ["expiresAt", (claims) => { claims.expiresAt = new Date(Date.parse(claims.expiresAt) + 60_000).toISOString() }],
+      ["budget.amount", (claims) => { claims.budget.amount += 1 }],
+      ["budget.currency", (claims) => { claims.budget.currency = "GBP" }],
+      ["purpose", (claims) => { claims.purpose = "a different purpose" }],
+      ["nonce", (claims) => { claims.nonce = "00000000-0000-0000-0000-000000000000" }],
+      ["constraints.allowMerchants", (claims) => { claims.constraints.allowMerchants = ["evil-shop"] }],
+      ["constraints.denyMerchants", (claims) => { claims.constraints.denyMerchants = [] }],
+      ["constraints.allowCategories", (claims) => { claims.constraints.allowCategories = ["anything"] }],
+      ["constraints.maxPerTransaction", (claims) => { claims.constraints.maxPerTransaction = EUR(999_999) }],
+      ["constraints.maxTransactions", (claims) => { claims.constraints.maxTransactions = 999 }],
+      ["constraints.requireApprovalAbove", (claims) => { claims.constraints.requireApprovalAbove = EUR(999_999) }],
+    ]
+
+    for (const [field, mutate] of mutations) {
+      const tampered = structuredClone(envelope)
+      mutate(tampered.claims)
+      expect(verifySignature(tampered, TEST_KEY).valid, `tampering ${field} must invalidate the signature`).toBe(false)
+    }
+  })
+
+  it("rejects an unknown signature algorithm", () => {
+    const { envelope } = makeMandate()
+    const tampered = { ...envelope, algorithm: "none" as never }
+    expect(verifySignature(tampered, TEST_KEY).valid).toBe(false)
+  })
+})
+
+describe("legacy HMAC-SHA256 verification", () => {
+  it("verifies an HMAC envelope with the shared secret", () => {
+    const { envelope } = makeMandate()
+    const hmac = {
+      claims: envelope.claims,
+      signature: signClaimsHmac(envelope.claims, TEST_KEY),
+      algorithm: "HMAC-SHA256" as const,
+    }
+    expect(verifySignature(hmac, TEST_KEY)).toEqual({ valid: true, reason: "signature verified" })
+  })
+
+  it("rejects a wrong secret and tampered claims", () => {
+    const { envelope } = makeMandate()
+    const hmac = {
+      claims: envelope.claims,
+      signature: signClaimsHmac(envelope.claims, TEST_KEY),
+      algorithm: "HMAC-SHA256" as const,
+    }
+
+    expect(verifySignature(hmac, "a-completely-different-secret").valid).toBe(false)
+
+    const tampered = structuredClone(hmac)
+    tampered.claims.budget.amount += 1
+    expect(verifySignature(tampered, TEST_KEY).valid).toBe(false)
+  })
+
+  it("accepts a base64-encoded HMAC signature", () => {
+    const { envelope } = makeMandate()
+    const hex = signClaimsHmac(envelope.claims, TEST_KEY)
+    const hmac = {
+      claims: envelope.claims,
+      signature: Buffer.from(hex, "hex").toString("base64"),
+      algorithm: "HMAC-SHA256" as const,
+    }
+    expect(verifySignature(hmac, TEST_KEY).valid).toBe(true)
+  })
+
+  it("refuses to verify HMAC with a public key", () => {
+    const { envelope } = makeMandate()
+    const hmac = {
+      claims: envelope.claims,
+      signature: signClaimsHmac(envelope.claims, TEST_KEY),
+      algorithm: "HMAC-SHA256" as const,
+    }
+    const { publicKey } = deriveKeyPair(TEST_KEY)
+    const result = verifySignature(hmac, publicKey)
+    expect(result.valid).toBe(false)
+    expect(result.reason).toMatch(/shared secret/)
   })
 })
 

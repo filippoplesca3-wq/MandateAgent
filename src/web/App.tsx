@@ -17,7 +17,7 @@ import {
   type ColDef,
   type ICellRendererParams,
 } from "ag-grid-community"
-import { api, useLiveState } from "./api.js"
+import { adminApi, api, useLiveState } from "./api.js"
 import type { AgentRunResponse, LedgerEntry, Money, PendingApproval, Snapshot, TrustScore } from "./api.js"
 
 ModuleRegistry.registerModules([AllCommunityModule])
@@ -1096,7 +1096,7 @@ export function App() {
 
   const issue = () =>
     act(() =>
-      api("/api/mandate", {
+      adminApi("/api/mandate", {
         method: "POST",
         body: JSON.stringify({
           principal: "filippo@example.com",
@@ -1112,13 +1112,13 @@ export function App() {
     )
 
   const revoke = () =>
-    act(() => api("/api/mandate/revoke", { method: "POST", body: JSON.stringify({}) }))
+    act(() => adminApi("/api/mandate/revoke", { method: "POST", body: JSON.stringify({}) }))
 
   const revokeTarget = state?.mandate?.claims.id
 
   const resolve = (id: string, approve: boolean) =>
     act(() =>
-      api(`/api/approvals/${id}/resolve`, {
+      adminApi(`/api/approvals/${id}/resolve`, {
         method: "POST",
         body: JSON.stringify({ approve }),
       }),

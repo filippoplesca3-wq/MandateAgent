@@ -41,6 +41,12 @@ if (!signingKey || signingKey.length < 16) {
 
 const port = Number(process.env["PORT"] ?? 3001)
 const frameMs = Number(process.env["REPLAY_FRAME_MS"] ?? 1_200)
+const adminToken = process.env["ADMIN_TOKEN"]?.trim()
+const allowedOrigins = (process.env["ALLOWED_ORIGINS"] ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter((origin) => origin.length > 0)
+const rateLimitPerMinute = Number(process.env["RATE_LIMIT_PER_MINUTE"] ?? 30)
 
 const store = new Store(
   signingKey,
@@ -138,6 +144,9 @@ const { app } = createApp({
   ...(merchantAliases ? { merchantAliases } : {}),
   ...(webhook ? { webhook } : {}),
   ...(replay ? { replay } : {}),
+  ...(adminToken ? { adminToken } : {}),
+  ...(allowedOrigins.length > 0 ? { allowedOrigins } : {}),
+  ...(Number.isFinite(rateLimitPerMinute) ? { rateLimitPerMinute } : {}),
 })
 
 // Serve the built UI when it exists. In dev, Vite handles this.
@@ -179,5 +188,10 @@ app.listen(port, () => {
     )
   }
   console.log(`Mandate: ${mandateId}`)
+  console.log(
+    adminToken
+      ? "Admin API: bearer token required for issue/revoke/approve"
+      : "Admin API: disabled (set ADMIN_TOKEN to enable issue/revoke/approve)",
+  )
   console.log("=".repeat(70))
 })

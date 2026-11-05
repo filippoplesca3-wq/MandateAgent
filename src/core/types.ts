@@ -102,6 +102,8 @@ export interface PaymentProposal {
   category?: string
   /** Human-readable description for the ledger. */
   description?: string
+  /** PayPal order id, when the proposal is a capture of a specific order. */
+  orderId?: string
 }
 
 /** Outcome of evaluating a proposal against a mandate. */
@@ -157,6 +159,8 @@ export interface LedgerEntry {
   externalRef?: string
   /** Tool result payload, truncated for display. */
   result?: string
+  /** True when this entry moved the mandate's committed spend counter. */
+  committed?: boolean
 }
 
 // ---------------------------------------------------------------------------

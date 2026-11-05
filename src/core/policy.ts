@@ -129,7 +129,7 @@ export function evaluate(input: EvaluateInput): Decision {
   if (!sig.valid) {
     return deny("signature", sig.reason, "SIGNATURE_INVALID")
   }
-  pass("signature", "HMAC-SHA256 over canonical claims matches")
+  pass("signature", `${envelope.algorithm} signature over canonical claims matches`)
 
   const claims = envelope.claims
 

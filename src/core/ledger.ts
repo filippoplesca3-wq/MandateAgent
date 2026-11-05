@@ -17,6 +17,7 @@ export interface AppendInput {
   decision: Decision
   externalRef?: string
   result?: string
+  committed?: boolean
 }
 
 export type LedgerSubscriber = (entry: LedgerEntry) => void
@@ -39,6 +40,7 @@ export class Ledger {
       decision: input.decision,
       ...(input.externalRef !== undefined ? { externalRef: input.externalRef } : {}),
       ...(input.result !== undefined ? { result: input.result } : {}),
+      ...(input.committed ? { committed: true } : {}),
     }
 
     this.entries.push(entry)

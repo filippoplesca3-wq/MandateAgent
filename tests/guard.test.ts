@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { z } from "zod"
 import { Store } from "../src/core/store.js"
-import { guardTools } from "../src/paypal/guard.js"
+import { COMMITTING_TOOLS, guardTools } from "../src/paypal/guard.js"
 import { createSimulatedTools, type SimulatedOrder } from "../src/paypal/simulated.js"
 import type { ToolExecOptions, ToolLike, ToolSet } from "../src/paypal/tool-types.js"
 import type { MandateConstraints } from "../src/core/types.js"
@@ -17,6 +17,7 @@ interface SetupOptions {
   seedOrders?: SimulatedOrder[]
   extraTools?: ToolSet
   merchantAliases?: Record<string, string>
+  now?: Date
 }
 
 function setup(options: SetupOptions = {}) {
@@ -26,7 +27,7 @@ function setup(options: SetupOptions = {}) {
     agentId: "agent-procurement-01",
     budget: { amount: options.budget ?? 50_000, currency: "USD" },
     purpose: "Restock office supplies",
-    now: new Date(),
+    now: options.now ?? new Date(),
     ...(options.constraints ? { constraints: options.constraints } : {}),
   })
 
@@ -337,6 +338,28 @@ describe("guard — escalation", () => {
     expect(remaining(store, mandateId)).toBe(4_500)
   })
 
+  it("binds an approval to the exact order id", async () => {
+    const { store, tools } = setup({
+      constraints: { requireApprovalAbove: { amount: 1_000, currency: "USD" } },
+      seedOrders: [
+        { id: "ORD00000000000001", status: "CREATED", amount: 4_500, currency: "USD", merchant: MERCHANT },
+        { id: "ORD00000000000002", status: "CREATED", amount: 4_500, currency: "USD", merchant: MERCHANT },
+      ],
+    })
+
+    const parked = await call(tools, "pay_order", { id: "ORD00000000000001" })
+    store.resolveApproval(parked.approvalId, true)
+
+    // Same action, amount and merchant, different order: the approval is
+    // bound to the order the human actually saw and must not be reused.
+    const other = await call(tools, "pay_order", { id: "ORD00000000000002" })
+    expect(other.code).toBe("REQUIRES_HUMAN_APPROVAL")
+    expect(other.approvalId).not.toBe(parked.approvalId)
+    expect(
+      store.listApprovals().find((item) => item.id === parked.approvalId)?.status,
+    ).toBe("approved")
+  })
+
   it("does not release a payment the human never saw", async () => {
     const { store, tools } = setup({
       constraints: { requireApprovalAbove: { amount: 1_000, currency: "USD" } },
@@ -382,6 +405,40 @@ describe("guard â€” mandate validity", () => {
     expect(result.code).toBe("MANDATE_REVOKED")
   })
 
+  it("blocks spend tools once the mandate is revoked", async () => {
+    const { store, mandateId, tools } = setup()
+    store.revoke(mandateId)
+    const result = await call(tools, "create_order", orderArgs(45))
+    expect(result.ok).toBe(false)
+    expect(result.code).toBe("MANDATE_REVOKED")
+  })
+
+  it("blocks read and spend tools once the mandate has expired", async () => {
+    const { tools } = setup({ now: new Date("2020-01-01T00:00:00.000Z") })
+
+    const read = await call(tools, "list_transactions", {})
+    expect(read.ok).toBe(false)
+    expect(read.code).toBe("MANDATE_EXPIRED")
+
+    const spend = await call(tools, "create_order", orderArgs(45))
+    expect(spend.ok).toBe(false)
+    expect(spend.code).toBe("MANDATE_EXPIRED")
+  })
+
+  it("blocks read and spend tools when the signed claims were tampered with", async () => {
+    const { store, mandateId, tools } = setup()
+    const stored = store.get(mandateId)!
+    stored.envelope.claims.budget.amount = 999_999
+
+    const read = await call(tools, "list_transactions", {})
+    expect(read.ok).toBe(false)
+    expect(read.code).toBe("SIGNATURE_INVALID")
+
+    const spend = await call(tools, "create_order", orderArgs(45))
+    expect(spend.ok).toBe(false)
+    expect(spend.code).toBe("SIGNATURE_INVALID")
+  })
+
   it("permits read tools without recording them by default", async () => {
     const { store, tools } = setup()
     const result = await call(tools, "list_transactions", {})
@@ -422,5 +479,84 @@ describe("guard â€” ledger integrity", () => {
     expect(entry?.proposal.currency).toBe("USD")
     expect(entry?.externalRef).toBe("ORD00000000000001")
     expect(entry?.decision.allowed).toBe(true)
+  })
+})
+
+describe("guard - budget accounting", () => {
+  /** The spend counter must equal the sum of committed ledger entries. */
+  function committedTotal(store: Store): number {
+    return store.ledger
+      .all()
+      .filter((entry) => entry.committed === true && COMMITTING_TOOLS.has(entry.action))
+      .reduce((sum, entry) => sum + (entry.proposal.amount ?? 0), 0)
+  }
+
+  function spend(store: Store, mandateId: string): number {
+    return store.get(mandateId)!.state.spendToDate.amount
+  }
+
+  it("matches committed entries after an allowed capture", async () => {
+    const { store, mandateId, tools } = setup({
+      seedOrders: [
+        { id: "ORD00000000000001", status: "CREATED", amount: 4_500, currency: "USD", merchant: MERCHANT },
+      ],
+    })
+
+    await call(tools, "pay_order", { id: "ORD00000000000001" })
+    expect(spend(store, mandateId)).toBe(4_500)
+    expect(spend(store, mandateId)).toBe(committedTotal(store))
+  })
+
+  it("matches after a denied call", async () => {
+    const { store, mandateId, tools } = setup({ budget: 1_000 })
+    await call(tools, "create_order", orderArgs(45))
+    expect(spend(store, mandateId)).toBe(0)
+    expect(spend(store, mandateId)).toBe(committedTotal(store))
+  })
+
+  it("matches after an escalated call", async () => {
+    const { store, mandateId, tools } = setup({
+      constraints: { requireApprovalAbove: { amount: 1_000, currency: "USD" } },
+      seedOrders: [
+        { id: "ORD00000000000001", status: "CREATED", amount: 4_500, currency: "USD", merchant: MERCHANT },
+      ],
+    })
+
+    await call(tools, "pay_order", { id: "ORD00000000000001" })
+    expect(spend(store, mandateId)).toBe(0)
+    expect(spend(store, mandateId)).toBe(committedTotal(store))
+    expect(store.ledger.all()[0]?.decision.requiresApproval).toBe(true)
+  })
+
+  it("matches after PayPal rejects a capture", async () => {
+    const { store, mandateId, tools } = setup({
+      seedOrders: [
+        { id: "ORD00000000000001", status: "CREATED", amount: 4_000, currency: "USD", merchant: MERCHANT },
+      ],
+    })
+
+    await call(tools, "pay_order", { id: "ORD00000000000001" })
+    await call(tools, "pay_order", { id: "ORD00000000000001" })
+    expect(spend(store, mandateId)).toBe(4_000)
+    expect(spend(store, mandateId)).toBe(committedTotal(store))
+  })
+
+  it("matches after two concurrent captures compete for the budget", async () => {
+    const { store, mandateId, tools } = setup({
+      budget: 5_000,
+      seedOrders: [
+        { id: "ORD00000000000001", status: "CREATED", amount: 4_000, currency: "USD", merchant: MERCHANT },
+        { id: "ORD00000000000002", status: "CREATED", amount: 4_000, currency: "USD", merchant: MERCHANT },
+      ],
+    })
+
+    const [first, second] = await Promise.all([
+      call(tools, "pay_order", { id: "ORD00000000000001" }),
+      call(tools, "pay_order", { id: "ORD00000000000002" }),
+    ])
+
+    expect([first.code, second.code].sort()).toEqual(["ALLOWED", "BUDGET_EXCEEDED"])
+    expect(spend(store, mandateId)).toBe(4_000)
+    expect(spend(store, mandateId)).toBe(committedTotal(store))
   })
 })

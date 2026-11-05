@@ -17,9 +17,10 @@ import express, {
   type Request,
   type Response,
 } from "express"
+import { z } from "zod"
 import { describeMandate, runAgent } from "../agent/agent.js"
 import { toAgentTools } from "../agent/tools.js"
-import { createPublicKey, type KeyObject } from "node:crypto"
+import { createPublicKey, timingSafeEqual, type KeyObject } from "node:crypto"
 import { validateClaims, verifySignature } from "../core/mandate.js"
 import type { Store } from "../core/store.js"
 import type { Currency, MandateConstraints, MandateEnvelope, Money } from "../core/types.js"
@@ -45,6 +46,54 @@ const CURRENCY: Currency = "USD"
  */
 const CHECKOUT_AMOUNT = 200
 
+/** Request bodies are validated before any handler reads a field. */
+const moneyInput = z.union([z.number(), z.string(), z.null()])
+
+const mandateBody = z
+  .object({
+    principal: z.string().max(200).optional(),
+    agentId: z.string().max(200).optional(),
+    purpose: z.string().max(2_000).optional(),
+    budget: moneyInput.optional(),
+    allowMerchants: z.array(z.string()).max(100).optional(),
+    denyMerchants: z.array(z.string()).max(100).optional(),
+    maxPerTransaction: moneyInput.optional(),
+    requireApprovalAbove: moneyInput.optional(),
+    maxTransactions: z.union([z.number(), z.string(), z.null()]).optional(),
+    ttlMinutes: z.union([z.number(), z.string(), z.null()]).optional(),
+  })
+  .passthrough()
+
+const revokeBody = z.object({ mandateId: z.string().optional() }).passthrough()
+
+const verifyBody = z
+  .object({
+    envelope: z.unknown().optional(),
+    mandate: z.unknown().optional(),
+    publicKey: z.string().optional(),
+  })
+  .passthrough()
+
+const agentRunBody = z
+  .object({
+    task: z.string().min(1).optional(),
+    apiKey: z.string().min(20).max(300).optional(),
+  })
+  .passthrough()
+
+const evaluateBody = z
+  .object({
+    action: z.string().min(1),
+    amount: moneyInput.optional(),
+    merchant: z.string().optional(),
+  })
+  .passthrough()
+
+const approvalBody = z.object({ approve: z.boolean() })
+const approvalParams = z.object({ id: z.string().min(1) })
+const captureBody = z.object({ orderId: z.string().min(1) })
+const webhookBody = z.object({}).passthrough()
+
 export interface ServerConfig {
   store: Store
   rawTools: ToolSet
@@ -66,6 +115,15 @@ export interface ServerConfig {
   }
   /** When set, the server serves a recording instead of running the agent. */
   replay?: ReplayPlayer
+  /**
+   * Bearer token required by the administrative routes (issue, revoke,
+   * approve). When unset those routes fail closed.
+   */
+  adminToken?: string
+  /** Exact origins allowed to call the API from a browser. */
+  allowedOrigins?: string[]
+  /** Requests per minute per client on the agent endpoints. */
+  rateLimitPerMinute?: number
 }
 
 export interface ServerHandle {
@@ -76,6 +134,21 @@ export interface ServerHandle {
 }
 
 class BadRequest extends Error {}
+
+/** Validate a request body or path params, answering 400 on the first issue. */
+function validateBody<T>(
+  schema: z.ZodType<T>,
+  value: unknown,
+  next: NextFunction,
+): T | undefined {
+  const parsed = schema.safeParse(value ?? {})
+  if (parsed.success) return parsed.data
+
+  const issue = parsed.error.issues[0]
+  const where = issue && issue.path.length > 0 ? `${issue.path.join(".")}: ` : ""
+  next(new BadRequest(`${where}${issue?.message ?? "invalid request"}`))
+  return undefined
+}
 
 /** A checkout the mandate or PayPal refused, reported as a payment error. */
 class CheckoutRefused extends Error {
@@ -176,6 +249,96 @@ export function createApp(config: ServerConfig): ServerHandle {
 
   app.use(express.json({ limit: "256kb" }))
 
+  // --- CORS ---------------------------------------------------------------
+  // Only origins named in ALLOWED_ORIGINS receive CORS headers. The deployed
+  // demo is same-origin, so the default is no cross-origin access at all.
+  const allowedOrigins = new Set(config.allowedOrigins ?? [])
+  app.use((req, res, next) => {
+    const origin = req.get("origin")
+    if (!origin) {
+      next()
+      return
+    }
+
+    res.setHeader("Vary", "Origin")
+    if (allowedOrigins.has(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin)
+      res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
+      res.setHeader("Access-Control-Max-Age", "600")
+    }
+
+    if (req.method === "OPTIONS") {
+      res.status(204).end()
+      return
+    }
+    next()
+  })
+
+  // --- Rate limiting -------------------------------------------------------
+  // Applied to the endpoints that cost money or model quota. In-memory is
+  // enough: the demo is one process, and a restart is a fresh window.
+  const rateLimitPerMinute = config.rateLimitPerMinute ?? 30
+  const rateBuckets = new Map<string, { count: number; resetAt: number }>()
+  function rateLimit(req: Request, res: Response, next: NextFunction): void {
+    const now = Date.now()
+    const key = req.ip ?? "unknown"
+    const bucket = rateBuckets.get(key)
+
+    if (!bucket || bucket.resetAt <= now) {
+      rateBuckets.set(key, { count: 1, resetAt: now + 60_000 })
+      next()
+      return
+    }
+
+    bucket.count += 1
+    if (bucket.count > rateLimitPerMinute) {
+      const retryAfter = Math.max(1, Math.ceil((bucket.resetAt - now) / 1_000))
+      res.setHeader("Retry-After", String(retryAfter))
+      res.status(429).json({
+        ok: false,
+        error: `Too many requests. Try again in ${retryAfter}s.`,
+      })
+      return
+    }
+
+    // Keep the map bounded if a deployment is scraped from many addresses.
+    if (rateBuckets.size > 1_000) {
+      for (const [candidate, value] of rateBuckets) {
+        if (value.resetAt <= now) rateBuckets.delete(candidate)
+      }
+    }
+
+    next()
+  }
+
+  /**
+   * Administrative routes move money or change authority, so they require a
+   * bearer token. The agent endpoints never receive this token, which is what
+   * stops an agent from approving its own escalated payments.
+   */
+  function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+    if (!config.adminToken) {
+      res.status(503).json({
+        ok: false,
+        error: "Admin API is disabled: set ADMIN_TOKEN on the server.",
+      })
+      return
+    }
+
+    const header = req.get("authorization") ?? ""
+    const supplied = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : ""
+    const expected = Buffer.from(config.adminToken, "utf8")
+    const actual = Buffer.from(supplied, "utf8")
+
+    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
+      res.status(401).json({ ok: false, error: "A valid admin bearer token is required." })
+      return
+    }
+
+    next()
+  }
+
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, mode: config.mode, mandateId, running })
   })
@@ -188,11 +351,11 @@ export function createApp(config: ServerConfig): ServerHandle {
   // Mandate lifecycle
   // -------------------------------------------------------------------------
 
-  app.post("/api/mandate", (req, res, next) => {
+  app.post("/api/mandate", requireAdmin, (req, res, next) => {
     if (refuseInReplay(res)) return
+    const body = validateBody(mandateBody, req.body, next)
+    if (!body) return
     try {
-      const body = (req.body ?? {}) as Record<string, unknown>
-
       const budget = moneyFrom(body["budget"], "budget") ?? { amount: 5_000, currency: CURRENCY }
       const constraints: MandateConstraints = {}
 
@@ -233,10 +396,11 @@ export function createApp(config: ServerConfig): ServerHandle {
     }
   })
 
-  app.post("/api/mandate/revoke", (req, res, next) => {
+  app.post("/api/mandate/revoke", requireAdmin, (req, res, next) => {
     if (refuseInReplay(res)) return
+    const body = validateBody(revokeBody, req.body, next)
+    if (!body) return
     try {
-      const body = (req.body ?? {}) as Record<string, unknown>
       const target = stringFrom(body["mandateId"]) ?? mandateId
       if (!store.revoke(target)) throw new BadRequest(`no mandate with id ${target}`)
       res.json(snapshot())
@@ -269,7 +433,8 @@ export function createApp(config: ServerConfig): ServerHandle {
    */
   app.post("/api/verify-mandate", (req, res, next) => {
     try {
-      const body = (req.body ?? {}) as Record<string, unknown>
+      const body = validateBody(verifyBody, req.body, next)
+      if (!body) return
       const envelope = (body["envelope"] ?? body["mandate"] ?? body) as MandateEnvelope | undefined
       if (
         !envelope ||
@@ -317,13 +482,14 @@ export function createApp(config: ServerConfig): ServerHandle {
   // Agent
   // -------------------------------------------------------------------------
 
-  app.post("/api/agent/run", (req, res, next) => {
+  app.post("/api/agent/run", rateLimit, (req, res, next) => {
     if (running) {
       res.status(409).json({ ok: false, error: "An agent run is already in progress." })
       return
     }
 
-    const body = (req.body ?? {}) as Record<string, unknown>
+    const body = validateBody(agentRunBody, req.body, next)
+    if (!body) return
     const replay = config.replay
 
     // In replay the task is whatever was recorded; the client cannot alter it.
@@ -402,9 +568,10 @@ export function createApp(config: ServerConfig): ServerHandle {
   // A dry run is deliberately allowed in replay: it is pure — it records
   // nothing and calls nothing — and it is the one way a visitor can try the
   // policy on the hosted demo without a Gemini key.
-  app.post("/api/evaluate", (req, res, next) => {
+  app.post("/api/evaluate", rateLimit, (req, res, next) => {
     try {
-      const body = (req.body ?? {}) as Record<string, unknown>
+      const body = validateBody(evaluateBody, req.body, next)
+      if (!body) return
       const action = stringFrom(body["action"])
       if (!action) throw new BadRequest("action is required")
 
@@ -427,16 +594,16 @@ export function createApp(config: ServerConfig): ServerHandle {
   // Approvals
   // -------------------------------------------------------------------------
 
-  app.post("/api/approvals/:id/resolve", (req, res, next) => {
+  app.post("/api/approvals/:id/resolve", requireAdmin, (req, res, next) => {
     if (refuseInReplay(res)) return
 
-    const approve = (req.body as Record<string, unknown> | undefined)?.["approve"]
-    if (typeof approve !== "boolean") {
-      next(new BadRequest("approve must be a boolean"))
-      return
-    }
+    const body = validateBody(approvalBody, req.body, next)
+    if (!body) return
+    const params = validateBody(approvalParams, req.params, next)
+    if (!params) return
 
-    const approvalId = req.params["id"] ?? ""
+    const approve = body.approve
+    const approvalId = params.id
     const target = store.listApprovals().find((item) => item.id === approvalId)
     if (!target) {
       next(new BadRequest("approval not found"))
@@ -561,7 +728,8 @@ export function createApp(config: ServerConfig): ServerHandle {
       return
     }
 
-    const body = (req.body ?? {}) as Record<string, unknown>
+    const body = validateBody(captureBody, req.body, next)
+    if (!body) return
     const orderId = stringFrom(body["orderId"])
     if (!orderId) {
       next(new BadRequest("orderId is required"))
@@ -614,6 +782,9 @@ export function createApp(config: ServerConfig): ServerHandle {
       return
     }
 
+    const body = validateBody(webhookBody, req.body, next)
+    if (!body) return
+
     const headers = webhookHeadersFrom({
       "paypal-transmission-id": req.header("paypal-transmission-id"),
       "paypal-transmission-time": req.header("paypal-transmission-time"),
@@ -627,7 +798,7 @@ export function createApp(config: ServerConfig): ServerHandle {
       return
     }
 
-    Promise.resolve(config.webhook.verify(headers, req.body))
+    Promise.resolve(config.webhook.verify(headers, body))
       .then((verified) => {
         if (!verified) {
           res.status(400).json({
@@ -637,7 +808,7 @@ export function createApp(config: ServerConfig): ServerHandle {
           return
         }
 
-        const event = readWebhookEvent(req.body)
+        const event = readWebhookEvent(body)
         if (event) {
           webhookEvents.set(event.id, event)
           while (webhookEvents.size > 50) {
@@ -703,6 +874,21 @@ export function createApp(config: ServerConfig): ServerHandle {
       res.status(400).json({ ok: false, error: error.message })
       return
     }
+
+    // express.json() reports body-limit and parse failures on the error object.
+    const kind =
+      typeof error === "object" && error !== null && "type" in error
+        ? (error as { type?: unknown }).type
+        : undefined
+    if (kind === "entity.too.large") {
+      res.status(413).json({ ok: false, error: "Request body is too large (limit 256kb)." })
+      return
+    }
+    if (kind === "entity.parse.failed") {
+      res.status(400).json({ ok: false, error: "Request body is not valid JSON." })
+      return
+    }
+
     const message = error instanceof Error ? error.message : String(error)
     res.status(500).json({ ok: false, error: message })
   })

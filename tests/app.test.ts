@@ -7,6 +7,7 @@ import { createApp } from "../src/server/app.js"
 import { TEST_KEY } from "./helpers.js"
 
 const MERCHANT = "acme-supplies"
+const ADMIN_TOKEN = "test-admin-token"
 
 let server: Server
 let base: string
@@ -33,6 +34,7 @@ beforeAll(async () => {
     merchantId: MERCHANT,
     mode: "simulated",
     note: "test",
+    adminToken: ADMIN_TOKEN,
   })
 
   server = app.listen(0)
@@ -100,5 +102,83 @@ describe("public mandate verification", () => {
     const body = (await response.json()) as { ok: boolean; signatureValid: boolean }
     expect(body.signatureValid).toBe(false)
     expect(body.ok).toBe(false)
+  })
+})
+
+describe("admin authentication", () => {
+  const post = (path: string, body: unknown, token?: string) =>
+    fetch(`${base}${path}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    })
+
+  it("refuses to issue a mandate without a bearer token", async () => {
+    const response = await post("/api/mandate", {})
+    expect(response.status).toBe(401)
+  })
+
+  it("refuses a wrong bearer token", async () => {
+    const response = await post("/api/mandate", {}, "not-the-token")
+    expect(response.status).toBe(401)
+  })
+
+  it("refuses to resolve an approval without a bearer token", async () => {
+    const response = await post("/api/approvals/does-not-exist/resolve", { approve: true })
+    expect(response.status).toBe(401)
+  })
+
+  it("issues a mandate with the bearer token", async () => {
+    const response = await post("/api/mandate", {}, ADMIN_TOKEN)
+    const body = (await response.json()) as {
+      mandate: { claims: { principal: string; agentId: string } }
+    }
+    expect(response.status).toBe(201)
+    expect(body.mandate.claims.agentId).toBe("agent-procurement-01")
+  })
+
+  it("revokes with the bearer token", async () => {
+    const response = await post("/api/mandate/revoke", {}, ADMIN_TOKEN)
+    const body = (await response.json()) as { revokedAt: string | null }
+    expect(response.status).toBe(200)
+    expect(body.revokedAt).not.toBeNull()
+  })
+
+  it("fails closed when ADMIN_TOKEN is not configured", async () => {
+    const store = new Store(TEST_KEY)
+    const { envelope } = store.issue({
+      principal: "filippo@example.com",
+      agentId: "agent-procurement-01",
+      budget: { amount: 12_000, currency: "USD" },
+      purpose: "Restock office supplies",
+      now: new Date(),
+    })
+
+    const { app } = createApp({
+      store,
+      rawTools: createSimulatedTools({ merchantId: MERCHANT }),
+      mandateId: envelope.claims.id,
+      agentId: "agent-procurement-01",
+      merchantId: MERCHANT,
+      mode: "simulated",
+      note: "test",
+    })
+
+    const local = app.listen(0)
+    await new Promise<void>((resolve) => local.once("listening", resolve))
+    try {
+      const address = local.address() as AddressInfo
+      const response = await fetch(`http://127.0.0.1:${address.port}/api/mandate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      })
+      expect(response.status).toBe(503)
+    } finally {
+      local.close()
+    }
   })
 })

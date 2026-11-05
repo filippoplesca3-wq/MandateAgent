@@ -96,6 +96,7 @@ async function executeGuarded(
       action,
       ...(proposal.amount !== undefined ? { amount: proposal.amount } : {}),
       ...(proposal.merchant !== undefined ? { merchant: proposal.merchant } : {}),
+      ...(proposal.orderId !== undefined ? { orderId: proposal.orderId } : {}),
     }
     const approved = store.findApprovedApproval(expected)
     if (approved && store.consumeApproval(approved.id, expected)) {
@@ -213,6 +214,7 @@ async function executeGuarded(
   }
 
   // The call succeeded: confirm the reservation so the money moves to committed spend.
+  const committed = reservationId !== undefined
   if (reservationId) store.confirmReservation(reservationId)
 
   const externalRef = extractExternalRef(result)
@@ -227,6 +229,7 @@ async function executeGuarded(
       decision,
       ...(externalRef ? { externalRef } : {}),
       result: preview(result),
+      ...(committed ? { committed: true } : {}),
     })
   }
 
@@ -278,6 +281,7 @@ async function resolveProposal(
     // agent's description of it.
     const orderId = typeof input.id === "string" ? input.id : undefined
     if (orderId) {
+      proposal.orderId = orderId
       const order = await readOrder(rawTools, orderId)
       const details = orderDetails(order)
       if (details) {

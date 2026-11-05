@@ -52,6 +52,8 @@ export interface PendingApproval {
    * exactly as it was proposed rather than reconstructed from the proposal.
    */
   args?: unknown
+  /** Order id the approval is bound to, when the payment captures an order. */
+  orderId?: string
 }
 
 export interface ExecutionRecord {
@@ -75,6 +77,8 @@ export class Store {
   }>()
 
   private readonly signingKey: KeyObject
+  /** The original secret, retained only to verify legacy HMAC-SHA256 mandates. */
+  private readonly secret: string
   /** Public half of the mandate signing key: anyone can verify, nobody can forge. */
   readonly verificationKey: KeyObject
   /** SPKI base64 public key, exposed via /api/mandate/public-key. */
@@ -90,6 +94,7 @@ export class Store {
     }
     const { privateKey, publicKey } = deriveKeyPair(secret)
     this.signingKey = privateKey
+    this.secret = secret
     this.verificationKey = publicKey
     const der = publicKey.export({ type: "spki", format: "der" }) as unknown as ArrayBuffer
     this.publicKeyBase64 = Buffer.from(der).toString("base64")
@@ -197,7 +202,10 @@ export class Store {
       envelope: found.envelope,
       state: found.state,
       proposal,
-      verificationKey: this.verificationKey,
+      // Legacy HMAC envelopes need the shared secret; Ed25519 ones verify with
+      // the public key alone.
+      verificationKey:
+        found.envelope.algorithm === "HMAC-SHA256" ? this.secret : this.verificationKey,
     })
   }
 
@@ -336,6 +344,7 @@ export class Store {
       decision: input.decision,
       status: "pending",
       ...(input.args !== undefined ? { args: input.args } : {}),
+      ...(input.proposal.orderId !== undefined ? { orderId: input.proposal.orderId } : {}),
     }
     this.approvals.set(pending.id, pending)
 
@@ -382,6 +391,7 @@ export class Store {
     action: string
     amount?: number
     merchant?: string
+    orderId?: string
   }): PendingApproval | undefined {
     for (const item of this.approvals.values()) {
       if (item.status !== "approved") continue
@@ -389,6 +399,7 @@ export class Store {
       if (item.action !== expected.action) continue
       if (item.proposal.amount !== expected.amount) continue
       if (normalize(item.proposal.merchant) !== normalize(expected.merchant)) continue
+      if (item.proposal.orderId !== expected.orderId) continue
       return item
     }
     return undefined
@@ -403,7 +414,13 @@ export class Store {
    */
   consumeApproval(
     approvalId: string,
-    expected: { mandateId: string; action: string; amount?: number; merchant?: string },
+    expected: {
+      mandateId: string
+      action: string
+      amount?: number
+      merchant?: string
+      orderId?: string
+    },
   ): boolean {
     const found = this.approvals.get(approvalId)
     if (!found || found.status !== "approved") return false
@@ -411,6 +428,7 @@ export class Store {
     if (found.action !== expected.action) return false
     if (found.proposal.amount !== expected.amount) return false
     if (normalize(found.proposal.merchant) !== normalize(expected.merchant)) return false
+    if (found.proposal.orderId !== expected.orderId) return false
 
     this.approvals.delete(approvalId)
     this.persist()

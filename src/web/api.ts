@@ -63,6 +63,7 @@ export interface LedgerEntry {
   decision: Decision
   externalRef?: string
   result?: string
+  committed?: boolean
 }
 
 export interface PendingApproval {
@@ -156,9 +157,66 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   })
   const body = (await response.json().catch(() => ({}))) as T & { error?: string }
   if (!response.ok) {
-    throw new Error(body?.error ?? `Request failed with status ${response.status}`)
+    throw new ApiError(body?.error ?? `Request failed with status ${response.status}`, response.status)
   }
   return body
+}
+
+/** An HTTP failure with its status, so callers can react to 401 specifically. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message)
+    this.name = "ApiError"
+  }
+}
+
+const ADMIN_TOKEN_KEY = "agent-mandate:admin-token"
+
+function readAdminToken(): string {
+  try {
+    return window.sessionStorage.getItem(ADMIN_TOKEN_KEY) ?? ""
+  } catch {
+    return ""
+  }
+}
+
+function writeAdminToken(token: string): void {
+  try {
+    window.sessionStorage.setItem(ADMIN_TOKEN_KEY, token)
+  } catch {
+    // Storage can be unavailable in private modes; the prompt still works for
+    // the current call, which is enough for a demo.
+  }
+}
+
+async function adminRequest<T>(path: string, init: RequestInit | undefined, token: string): Promise<T> {
+  return api<T>(path, {
+    ...init,
+    headers: {
+      ...(init?.headers ?? {}),
+      Authorization: `Bearer ${token}`,
+    },
+  })
+}
+
+/**
+ * Administrative call: issue, revoke or approve. The token is kept in session
+ * storage, and asked for once when the server rejects an unauthenticated call.
+ */
+export async function adminApi<T>(path: string, init?: RequestInit): Promise<T> {
+  try {
+    return await adminRequest<T>(path, init, readAdminToken())
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401) throw error
+    const entered = window.prompt("Admin token (ADMIN_TOKEN from the server .env):", "")
+    const token = entered?.trim() ?? ""
+    if (!token) throw error
+    writeAdminToken(token)
+    return adminRequest<T>(path, init, token)
+  }
 }
 
 /**
