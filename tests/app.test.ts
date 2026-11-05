@@ -105,6 +105,27 @@ describe("public mandate verification", () => {
   })
 })
 
+describe("prompt injection", () => {
+  it("denies a malicious order and records the reason", async () => {
+    const response = await fetch(`${base}/api/demo/injection`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    })
+    const body = (await response.json()) as {
+      decision: { allowed: boolean; code: string; reason: string }
+      entry: { proposal: { amount: number; merchant: string } }
+    }
+
+    expect(response.status).toBe(200)
+    expect(body.decision.allowed).toBe(false)
+    expect(body.decision.code).toBe("MERCHANT_NOT_ALLOWED")
+    expect(body.decision.reason).toContain("sketchy-deals")
+    expect(body.entry.proposal.amount).toBe(9_900)
+    expect(body.entry.proposal.merchant).toBe("sketchy-deals")
+  })
+})
+
 describe("admin authentication", () => {
   const post = (path: string, body: unknown, token?: string) =>
     fetch(`${base}${path}`, {

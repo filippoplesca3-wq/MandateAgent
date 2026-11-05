@@ -488,11 +488,21 @@ interface Verdict {
   requiresApproval?: boolean
 }
 
-const TRY_PRESETS = [
+const TRY_PRESETS: {
+  label: string
+  amount: string
+  merchant: string
+  injection?: boolean
+}[] = [
   { label: "$12 -> acme-supplies", amount: "12.00", merchant: "acme-supplies" },
   { label: "$45 -> acme-supplies", amount: "45.00", merchant: "acme-supplies" },
   { label: "$200 -> acme-supplies", amount: "200.00", merchant: "acme-supplies" },
-  { label: "$99 -> sketchy-deals (injection)", amount: "99.00", merchant: "sketchy-deals" },
+  {
+    label: "$99 -> sketchy-deals (injection)",
+    amount: "99.00",
+    merchant: "sketchy-deals",
+    injection: true,
+  },
 ]
 
 /**
@@ -537,6 +547,30 @@ function TryPanel() {
     void check(value, shop)
   }
 
+  /**
+   * The injection preset follows a malicious product description and asks the
+   * guard to capture the order. It is the one preset that writes to the
+   * ledger, because the refusal is the evidence being demonstrated.
+   */
+  const inject = useCallback(async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const response = await api<{ ok: boolean; decision?: Verdict; error?: string }>(
+        "/api/demo/injection",
+        { method: "POST", body: JSON.stringify({}) },
+      )
+      if (!response.decision) throw new Error(response.error ?? "No decision returned")
+      setAmount("99.00")
+      setMerchant("sketchy-deals")
+      setVerdict(response.decision)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught))
+    } finally {
+      setBusy(false)
+    }
+  }, [])
+
   const tone = verdict
     ? verdict.allowed
       ? "allowed"
@@ -549,7 +583,7 @@ function TryPanel() {
   return (
     <Panel
       title="Test a payment"
-      subtitle="Dry run against the mandate. Nothing moves, no key needed."
+      subtitle="Dry run against the mandate. The injection preset records its refusal in the ledger."
     >
       <div className="try-chips">
         {TRY_PRESETS.map((item) => (
@@ -558,7 +592,7 @@ function TryPanel() {
             className="chip"
             type="button"
             disabled={busy}
-            onClick={() => preset(item.amount, item.merchant)}
+            onClick={() => (item.injection ? void inject() : preset(item.amount, item.merchant))}
           >
             {item.label}
           </button>
