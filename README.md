@@ -250,6 +250,9 @@ No secrets are required: replay mode generates an ephemeral signing key and neve
 calls PayPal or Gemini. Render's free web services sleep after inactivity, so the
 first request can take 30–60 seconds to wake the instance. That is expected.
 
+Exact steps for Render and Railway, including optional live-sandbox variables,
+are in [DEPLOY.md](DEPLOY.md).
+
 ## The demo, in one run
 
 The default mandate allows one merchant, caps a single payment at $50, and
