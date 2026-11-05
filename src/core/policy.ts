@@ -14,6 +14,7 @@
  */
 
 import { verifySignature, validateClaims, remainingBudget, formatMoney } from "./mandate.js"
+import type { KeyObject } from "node:crypto"
 import type {
   Decision,
   DecisionCode,
@@ -99,7 +100,8 @@ export interface EvaluateInput {
   envelope: MandateEnvelope
   state: MandateState
   proposal: PaymentProposal
-  signingKey: string
+  /** Public verification key: anyone can check a mandate, nobody can forge one. */
+  verificationKey: string | KeyObject
   now?: Date
 }
 
@@ -110,7 +112,7 @@ export interface EvaluateInput {
  * reason a payment was refused is the most specific true statement about it.
  */
 export function evaluate(input: EvaluateInput): Decision {
-  const { envelope, state, proposal, signingKey } = input
+  const { envelope, state, proposal, verificationKey } = input
   const now = input.now ?? new Date()
   const checks: RuleCheck[] = []
 
@@ -123,7 +125,7 @@ export function evaluate(input: EvaluateInput): Decision {
   }
 
   // --- 1. signature ---------------------------------------------------------
-  const sig = verifySignature(envelope, signingKey)
+  const sig = verifySignature(envelope, input.verificationKey)
   if (!sig.valid) {
     return deny("signature", sig.reason, "SIGNATURE_INVALID")
   }

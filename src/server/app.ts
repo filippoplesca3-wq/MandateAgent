@@ -19,8 +19,10 @@ import express, {
 } from "express"
 import { describeMandate, runAgent } from "../agent/agent.js"
 import { toAgentTools } from "../agent/tools.js"
+import { createPublicKey, type KeyObject } from "node:crypto"
+import { validateClaims, verifySignature } from "../core/mandate.js"
 import type { Store } from "../core/store.js"
-import type { Currency, MandateConstraints, Money } from "../core/types.js"
+import type { Currency, MandateConstraints, MandateEnvelope, Money } from "../core/types.js"
 import { guardTools } from "../paypal/guard.js"
 import type { ToolSet } from "../paypal/tool-types.js"
 import {
@@ -238,6 +240,74 @@ export function createApp(config: ServerConfig): ServerHandle {
       const target = stringFrom(body["mandateId"]) ?? mandateId
       if (!store.revoke(target)) throw new BadRequest(`no mandate with id ${target}`)
       res.json(snapshot())
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  // -------------------------------------------------------------------------
+  // Public verification
+  // -------------------------------------------------------------------------
+
+  /**
+   * The public half of the mandate signing key. A merchant can hold this and
+   * verify a mandate without ever seeing the server's secret.
+   */
+  app.get("/api/mandate/public-key", (_req, res) => {
+    res.json({
+      ok: true,
+      algorithm: "Ed25519",
+      format: "spki-der-base64",
+      publicKey: store.publicKeyBase64,
+    })
+  })
+
+  /**
+   * Verify a mandate with the server key, or with any public key supplied by
+   * the caller. This is what makes the mandate portable: a merchant only needs
+   * the signed envelope and a trusted public key.
+   */
+  app.post("/api/verify-mandate", (req, res, next) => {
+    try {
+      const body = (req.body ?? {}) as Record<string, unknown>
+      const envelope = (body["envelope"] ?? body["mandate"] ?? body) as MandateEnvelope | undefined
+      if (
+        !envelope ||
+        typeof envelope !== "object" ||
+        !envelope.claims ||
+        typeof envelope.claims !== "object" ||
+        typeof envelope.signature !== "string"
+      ) {
+        throw new BadRequest("body must contain a mandate envelope with claims and signature")
+      }
+
+      let key: KeyObject | string = store.verificationKey
+      const provided = stringFrom(body["publicKey"])
+      if (provided) {
+        try {
+          key = createPublicKey({
+            key: Buffer.from(provided, "base64"),
+            format: "der",
+            type: "spki",
+          })
+        } catch {
+          throw new BadRequest("publicKey must be a base64 SPKI DER Ed25519 public key")
+        }
+      }
+
+      const signature = verifySignature(envelope, key)
+      const claims = validateClaims(envelope.claims)
+
+      res.json({
+        ok: signature.valid && claims.valid,
+        mandateId: envelope.claims.id,
+        algorithm: envelope.algorithm,
+        signatureValid: signature.valid,
+        signatureReason: signature.reason,
+        claimsValid: claims.valid,
+        claimsReason: claims.reason,
+        claims: envelope.claims,
+      })
     } catch (error) {
       next(error)
     }

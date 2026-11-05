@@ -489,10 +489,10 @@ interface Verdict {
 }
 
 const TRY_PRESETS = [
-  { label: "$12 · acme-supplies", amount: "12.00", merchant: "acme-supplies" },
-  { label: "$45 · acme-supplies", amount: "45.00", merchant: "acme-supplies" },
-  { label: "$200 · acme-supplies", amount: "200.00", merchant: "acme-supplies" },
-  { label: "$9 · sketchy-deals", amount: "9.00", merchant: "sketchy-deals" },
+  { label: "$12 -> acme-supplies", amount: "12.00", merchant: "acme-supplies" },
+  { label: "$45 -> acme-supplies", amount: "45.00", merchant: "acme-supplies" },
+  { label: "$200 -> acme-supplies", amount: "200.00", merchant: "acme-supplies" },
+  { label: "$99 -> sketchy-deals (injection)", amount: "99.00", merchant: "sketchy-deals" },
 ]
 
 /**

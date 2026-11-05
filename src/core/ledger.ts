@@ -62,6 +62,16 @@ export class Ledger {
     return [...this.entries].reverse()
   }
 
+  /** Oldest first, in append order. Used for persistence. */
+  all(): LedgerEntry[] {
+    return [...this.entries]
+  }
+
+  /** Restore a persisted ledger, oldest first. */
+  restore(entries: LedgerEntry[]): void {
+    this.entries = entries.slice(-MAX_ENTRIES)
+  }
+
   subscribe(fn: LedgerSubscriber): () => void {
     this.subscribers.add(fn)
     return () => {

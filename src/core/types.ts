@@ -66,17 +66,19 @@ export interface MandateConstraints {
 /** A mandate plus its detached signature. */
 export interface MandateEnvelope {
   claims: MandateClaims
-  /** hex-encoded HMAC-SHA256 over the canonicalized claims. */
+  /** Base64-encoded Ed25519 signature over the canonicalized claims. */
   signature: string
-  /** Ed25519 public key of the issuer, informational. */
-  algorithm: "HMAC-SHA256"
+  algorithm: "HMAC-SHA256" | "Ed25519"
 }
 
 /** Runtime-only state that is deliberately NOT signed. */
 export interface MandateState {
   mandateId: string
   revokedAt: string | null
+  /** Committed spend: money that has actually moved. */
   spendToDate: Money
+  /** Reserved but not yet confirmed: money held for an in-flight payment. */
+  reservedToDate: Money
   transactionCount: number
 }
 

@@ -15,6 +15,7 @@ import { existsSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import express from "express"
+import { SqlitePersistence } from "../core/persistence.js"
 import { Store } from "../core/store.js"
 import { parseMerchantAliases } from "../paypal/env.js"
 import { createPayPalTools, paypalConfigFromEnv } from "../paypal/index.js"
@@ -41,7 +42,14 @@ if (!signingKey || signingKey.length < 16) {
 const port = Number(process.env["PORT"] ?? 3001)
 const frameMs = Number(process.env["REPLAY_FRAME_MS"] ?? 1_200)
 
-const store = new Store(signingKey)
+const store = new Store(
+  signingKey,
+  process.env["STORE_BACKEND"]?.toLowerCase() === "sqlite" && !replayFile
+    ? new SqlitePersistence(
+        process.env["STORE_DB"] ?? join(process.cwd(), "data", "agent-mandate.sqlite"),
+      )
+    : undefined,
+)
 
 const replay = replayFile
   ? new ReplayPlayer(loadReplayFile(replayFile), Number.isFinite(frameMs) ? frameMs : 1_200)
@@ -86,7 +94,23 @@ const paypal = simulated
 // A recorded mandate is already spent down. Issuing a fresh one and charging
 // it with the same amount keeps a hosted dry run consistent with the numbers
 // on screen. The longer TTL avoids a hosted demo expiring while it idles.
-const mandateId = issueDemoMandate(store, replay ? 30 * 24 * 60 * 60 * 1_000 : 24 * 60 * 60 * 1_000)
+//
+// With SQLite persistence, an existing live mandate is reused across restarts
+// so the spend history survives; a fresh one is issued only when the previous
+// mandate is gone, revoked, expired or exhausted.
+function reusableMandate(): string | undefined {
+  for (const stored of store.list()) {
+    if (stored.state.revokedAt !== null) continue
+    if (Date.parse(stored.envelope.claims.expiresAt) <= Date.now()) continue
+    if ((store.effectiveRemaining(stored.envelope.claims.id)?.amount ?? 0) <= 0) continue
+    return stored.envelope.claims.id
+  }
+  return undefined
+}
+
+const mandateId = replay
+  ? issueDemoMandate(store, 30 * 24 * 60 * 60 * 1_000)
+  : (reusableMandate() ?? issueDemoMandate(store, 24 * 60 * 60 * 1_000))
 seedTrust(store)
 
 if (replay) {

@@ -3,15 +3,25 @@
  *
  * A mandate is a signed capability: it says "agent X may spend up to N of
  * currency C, at these merchants, before time T, for this purpose". The
- * signature is a detached HMAC-SHA256 over the canonicalized claims, so the
- * claims cannot be widened after issuance without invalidating the mandate.
+ * signature is a detached Ed25519 signature over the canonicalized claims, so
+ * the claims cannot be widened after issuance without invalidating the mandate.
+ * Ed25519 is asymmetric: the server signs with a private key, while anyone can
+ * verify with the published public key.
  *
  * Revocation is deliberately NOT part of the signed envelope. Revocation is
  * mutable server-side state, checked at evaluation time, so a mandate can be
  * killed instantly without re-issuing anything.
  */
 
-import { createHmac, randomUUID, timingSafeEqual } from "node:crypto"
+import {
+  createHash,
+  createPrivateKey,
+  createPublicKey,
+  randomUUID,
+  sign,
+  type KeyObject,
+  verify,
+} from "node:crypto"
 import { canonicalize } from "./canonical.js"
 import type {
   MandateClaims,
@@ -35,11 +45,43 @@ export interface IssueMandateSpec {
   now?: Date
 }
 
-export function signClaims(claims: MandateClaims, signingKey: string): string {
-  return createHmac("sha256", signingKey).update(canonicalize(claims)).digest("hex")
+/** A signing key can be a long random string (derived to an Ed25519 seed) or a KeyObject. */
+export type SigningKey = string | KeyObject
+
+export function deriveKeyPair(secret: string): { privateKey: KeyObject; publicKey: KeyObject } {
+  // Ed25519 needs a 32-byte seed. Derive it deterministically from the secret so
+  // rotating MANDATE_SIGNING_KEY rotates the mandate keys, and the same secret
+  // always yields the same pair. Node accepts the seed wrapped in a PKCS8 DER
+  // envelope: the fixed Ed25519 prefix followed by the raw seed.
+  const seed = createHash("sha256").update(secret).digest()
+  const pkcs8 = Buffer.concat([
+    Buffer.from("302e020100300506032b657004220420", "hex"),
+    seed,
+  ])
+  const privateKey = createPrivateKey({ key: pkcs8, format: "der", type: "pkcs8" })
+  const publicKey = createPublicKey(privateKey)
+  return { privateKey, publicKey }
 }
 
-export function issueMandate(spec: IssueMandateSpec, signingKey: string): MandateEnvelope {
+function privateKeyFrom(key: SigningKey): KeyObject {
+  if (typeof key === "string") return deriveKeyPair(key).privateKey
+  if (key.type !== "private") throw new Error("signClaims: key must be a private KeyObject")
+  return key
+}
+
+function publicKeyFrom(key: SigningKey): KeyObject {
+  if (typeof key === "string") return deriveKeyPair(key).publicKey
+  if (key.type === "public") return key
+  return createPublicKey(key)
+}
+
+export function signClaims(claims: MandateClaims, key: SigningKey): string {
+  const privateKey = privateKeyFrom(key)
+  const signed = sign(null, Buffer.from(canonicalize(claims), "utf8"), privateKey)
+  return Buffer.from(signed).toString("base64")
+}
+
+export function issueMandate(spec: IssueMandateSpec, signingKey: SigningKey): MandateEnvelope {
   assertPositiveMoney(spec.budget, "budget")
 
   const now = spec.now ?? new Date()
@@ -68,7 +110,7 @@ export function issueMandate(spec: IssueMandateSpec, signingKey: string): Mandat
   return {
     claims,
     signature: signClaims(claims, signingKey),
-    algorithm: "HMAC-SHA256",
+    algorithm: "Ed25519",
   }
 }
 
@@ -79,7 +121,7 @@ export interface SignatureResult {
 
 export function verifySignature(
   envelope: MandateEnvelope,
-  signingKey: string,
+  key: SigningKey,
 ): SignatureResult {
   if (!envelope || typeof envelope !== "object") {
     return { valid: false, reason: "envelope is not an object" }
@@ -91,19 +133,29 @@ export function verifySignature(
     return { valid: false, reason: "envelope has no signature" }
   }
 
-  const expected = signClaims(envelope.claims, signingKey)
-  const a = Buffer.from(expected, "utf8")
-  const b = Buffer.from(envelope.signature, "utf8")
+  let signature: Buffer
+  try {
+    signature = Buffer.from(envelope.signature, "base64")
+  } catch {
+    return { valid: false, reason: "signature is not valid base64" }
+  }
 
-  // timingSafeEqual throws on length mismatch, so compare lengths first. The
-  // length of a hex HMAC is not secret, so leaking it here is harmless.
-  if (a.length !== b.length) {
-    return { valid: false, reason: "signature does not match the claims" }
+  const publicKey = publicKeyFrom(key)
+  let valid = false
+  try {
+    valid = verify(
+      null,
+      Buffer.from(canonicalize(envelope.claims), "utf8"),
+      publicKey,
+      signature,
+    )
+  } catch {
+    valid = false
   }
-  if (!timingSafeEqual(a, b)) {
-    return { valid: false, reason: "signature does not match the claims" }
-  }
-  return { valid: true, reason: "signature verified" }
+
+  return valid
+    ? { valid: true, reason: "signature verified" }
+    : { valid: false, reason: "signature does not match the claims" }
 }
 
 export interface ClaimsValidity {
@@ -144,6 +196,7 @@ export function newMandateState(mandateId: string, currency: string): MandateSta
     mandateId,
     revokedAt: null,
     spendToDate: { amount: 0, currency },
+    reservedToDate: { amount: 0, currency },
     transactionCount: 0,
   }
 }
@@ -153,8 +206,9 @@ export function revokeMandate(state: MandateState, now: Date = new Date()): Mand
 }
 
 export function remainingBudget(claims: MandateClaims, state: MandateState): Money {
+  const committed = state.spendToDate.amount + state.reservedToDate.amount
   return {
-    amount: Math.max(0, claims.budget.amount - state.spendToDate.amount),
+    amount: Math.max(0, claims.budget.amount - committed),
     currency: claims.budget.currency,
   }
 }

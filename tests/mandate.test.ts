@@ -11,10 +11,11 @@ import {
 import { EUR, TEST_KEY, makeMandate } from "./helpers.js"
 
 describe("issueMandate", () => {
-  it("produces an envelope signed with HMAC-SHA256", () => {
+  it("produces an envelope signed with Ed25519", () => {
     const { envelope } = makeMandate()
-    expect(envelope.algorithm).toBe("HMAC-SHA256")
-    expect(envelope.signature).toMatch(/^[0-9a-f]{64}$/)
+    expect(envelope.algorithm).toBe("Ed25519")
+    // Ed25519 signatures are 64 bytes => 88 base64 chars with "==" padding.
+    expect(envelope.signature).toMatch(/^[A-Za-z0-9+\/]{86}==$/)
   })
 
   it("defaults expiry to 24 hours after issue", () => {
@@ -203,6 +204,7 @@ describe("newMandateState", () => {
       mandateId: "m-1",
       revokedAt: null,
       spendToDate: { amount: 0, currency: "EUR" },
+      reservedToDate: { amount: 0, currency: "EUR" },
       transactionCount: 0,
     })
   })

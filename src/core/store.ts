@@ -11,8 +11,11 @@
  * up. Persistence would be a storage adapter behind the same methods.
  */
 
-import { randomUUID } from "node:crypto"
+import { randomUUID, type KeyObject } from "node:crypto"
+import { deriveKeyPair, formatMoney } from "./mandate.js"
 import { Ledger } from "./ledger.js"
+import type { Persistence, StoreSnapshot } from "./persistence.js"
+import type { MandateEnvelope, MandateState, Money } from "./types.js"
 import {
   issueMandate,
   newMandateState,
@@ -24,8 +27,6 @@ import { scoreAgentTrust } from "./trust.js"
 import type {
   Decision,
   LedgerEntry,
-  MandateEnvelope,
-  MandateState,
   PaymentProposal,
   TrustScore,
   TrustSignals,
@@ -66,13 +67,68 @@ export class Store {
   private readonly mandates = new Map<string, StoredMandate>()
   private readonly approvals = new Map<string, PendingApproval>()
   private readonly agentSignals = new Map<string, TrustSignals>()
+  /** In-flight spend reservations: reservationId -> { mandateId, amount, currency }. */
+  private readonly reservations = new Map<string, {
+    mandateId: string
+    amount: number
+    currency: string
+  }>()
 
-  constructor(private readonly signingKey: string) {
-    if (!signingKey || signingKey.length < 16) {
+  private readonly signingKey: KeyObject
+  /** Public half of the mandate signing key: anyone can verify, nobody can forge. */
+  readonly verificationKey: KeyObject
+  /** SPKI base64 public key, exposed via /api/mandate/public-key. */
+  readonly publicKeyBase64: string
+
+  private readonly persistence: Persistence | null
+
+  constructor(secret: string, persistence?: Persistence) {
+    if (!secret || secret.length < 16) {
       throw new Error(
         "Store requires a signing key of at least 16 characters; set MANDATE_SIGNING_KEY",
       )
     }
+    const { privateKey, publicKey } = deriveKeyPair(secret)
+    this.signingKey = privateKey
+    this.verificationKey = publicKey
+    const der = publicKey.export({ type: "spki", format: "der" }) as unknown as ArrayBuffer
+    this.publicKeyBase64 = Buffer.from(der).toString("base64")
+
+    this.persistence = persistence ?? null
+    const snapshot = this.persistence?.load()
+    if (snapshot) this.restore(snapshot)
+  }
+
+  // -------------------------------------------------------------------------
+  // Persistence
+  // -------------------------------------------------------------------------
+
+  private restore(snapshot: StoreSnapshot): void {
+    for (const stored of snapshot.mandates) {
+      this.mandates.set(stored.envelope.claims.id, stored)
+    }
+    this.ledger.restore(snapshot.ledger)
+    for (const approval of snapshot.approvals) {
+      this.approvals.set(approval.id, approval)
+    }
+    for (const reservation of snapshot.reservations) {
+      this.reservations.set(reservation.id, {
+        mandateId: reservation.mandateId,
+        amount: reservation.amount,
+        currency: reservation.currency,
+      })
+    }
+  }
+
+  /** Write the whole store as one consistent snapshot. Cheap enough for a demo. */
+  private persist(): void {
+    if (!this.persistence) return
+    this.persistence.save({
+      mandates: [...this.mandates.values()],
+      ledger: this.ledger.all(),
+      approvals: [...this.approvals.values()],
+      reservations: [...this.reservations.entries()].map(([id, item]) => ({ id, ...item })),
+    })
   }
 
   // -------------------------------------------------------------------------
@@ -86,6 +142,7 @@ export class Store {
       state: newMandateState(envelope.claims.id, envelope.claims.budget.currency),
     }
     this.mandates.set(envelope.claims.id, stored)
+    this.persist()
     return stored
   }
 
@@ -110,6 +167,7 @@ export class Store {
     if (found.state.revokedAt === null) {
       found.state = revokeMandate(found.state)
     }
+    this.persist()
     return true
   }
 
@@ -139,14 +197,15 @@ export class Store {
       envelope: found.envelope,
       state: found.state,
       proposal,
-      signingKey: this.signingKey,
+      verificationKey: this.verificationKey,
     })
   }
 
   /**
    * Record that an allowed payment actually went through. This is the only
    * place a mandate's spend counter moves, so the budget can never drift from
-   * the ledger.
+   * the ledger. Kept for the replay path, which spends down a recorded mandate
+   * directly without going through the guard.
    */
   commitSpend(mandateId: string, amount: number): void {
     const found = this.getOrThrow(mandateId)
@@ -155,6 +214,82 @@ export class Store {
       currency: found.state.spendToDate.currency,
     }
     found.state.transactionCount += 1
+    this.persist()
+  }
+
+  /**
+   * Reserve budget for an in-flight payment, before the call reaches PayPal.
+   *
+   * This is the race-condition guard: two concurrent `pay_order` calls can both
+   * pass the policy budget check, but only one can reserve the money. The
+   * check and the record happen synchronously, with no await between them, so
+   * the second caller sees the reservation and is refused. On success the
+   * caller confirms the reservation (money moves to spend); on failure it
+   * releases it (money returns to available).
+   */
+  reserve(mandateId: string, amount: number): { ok: true; reservationId: string } | { ok: false; reason: string } {
+    const found = this.getOrThrow(mandateId)
+    const currency = found.state.spendToDate.currency
+    const budgetAmount = found.envelope.claims.budget.amount
+    const committed = found.state.spendToDate.amount + found.state.reservedToDate.amount
+    const remaining = budgetAmount - committed
+    if (amount <= 0 || remaining < amount) {
+      return {
+        ok: false,
+        reason: `only ${formatMoney({ amount: Math.max(0, remaining), currency })} of ${formatMoney({ amount: budgetAmount, currency })} budget remains`,
+      }
+    }
+
+    const reservationId = randomUUID()
+    this.reservations.set(reservationId, { mandateId, amount, currency })
+    found.state.reservedToDate = { amount: found.state.reservedToDate.amount + amount, currency }
+    this.persist()
+    return { ok: true, reservationId }
+  }
+
+  /** Move a reserved amount to committed spend and drop the reservation. */
+  confirmReservation(reservationId: string): boolean {
+    const reservation = this.reservations.get(reservationId)
+    if (!reservation) return false
+    const found = this.getOrThrow(reservation.mandateId)
+    found.state.reservedToDate = {
+      amount: Math.max(0, found.state.reservedToDate.amount - reservation.amount),
+      currency: reservation.currency,
+    }
+    found.state.spendToDate = {
+      amount: found.state.spendToDate.amount + reservation.amount,
+      currency: reservation.currency,
+    }
+    found.state.transactionCount += 1
+    this.reservations.delete(reservationId)
+    this.persist()
+    return true
+  }
+
+  /** Release a held reservation because the payment failed or was cancelled. */
+  releaseReservation(reservationId: string): boolean {
+    const reservation = this.reservations.get(reservationId)
+    if (!reservation) return false
+    const found = this.getOrThrow(reservation.mandateId)
+    found.state.reservedToDate = {
+      amount: Math.max(0, found.state.reservedToDate.amount - reservation.amount),
+      currency: reservation.currency,
+    }
+    this.reservations.delete(reservationId)
+    this.persist()
+    return true
+  }
+
+  /** Effective spendable budget: budget minus committed and reserved. */
+  effectiveRemaining(mandateId: string): Money | null {
+    const found = this.mandates.get(mandateId)
+    if (!found) return null
+    const envelope = found.envelope.claims
+    const committed = found.state.spendToDate.amount + found.state.reservedToDate.amount
+    return {
+      amount: Math.max(0, envelope.budget.amount - committed),
+      currency: envelope.budget.currency,
+    }
   }
 
   /**
@@ -169,7 +304,9 @@ export class Store {
     externalRef?: string
     result?: string
   }): LedgerEntry {
-    return this.ledger.append(entry)
+    const appended = this.ledger.append(entry)
+    this.persist()
+    return appended
   }
 
   // -------------------------------------------------------------------------
@@ -210,6 +347,7 @@ export class Store {
       decision: input.decision,
     })
 
+    this.persist()
     return pending
   }
 
@@ -228,6 +366,7 @@ export class Store {
     if (!found || found.status !== "pending") return undefined
     found.status = approved ? "approved" : "rejected"
     found.resolvedAt = new Date().toISOString()
+    this.persist()
     return found
   }
 
@@ -274,6 +413,7 @@ export class Store {
     if (normalize(found.proposal.merchant) !== normalize(expected.merchant)) return false
 
     this.approvals.delete(approvalId)
+    this.persist()
     return true
   }
 

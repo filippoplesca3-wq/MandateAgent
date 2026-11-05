@@ -152,7 +152,7 @@ async function executeGuarded(
     })
   }
 
-  // --- permitted: call PayPal ----------------------------------------------
+  // --- permitted: reserve budget, then call PayPal --------------------------
   if (typeof tool.execute !== "function") {
     return payload({
       ok: false,
@@ -161,10 +161,31 @@ async function executeGuarded(
     })
   }
 
+  let reservationId: string | undefined
+  if (
+    toolClass === "spend" &&
+    COMMITTING_TOOLS.has(action) &&
+    typeof proposal.amount === "number"
+  ) {
+    const reserved = store.reserve(mandateId, proposal.amount)
+    if (!reserved.ok) {
+      record(store, options, {
+        mandateId,
+        agentId,
+        action,
+        proposal,
+        decision: { ...decision, code: "BUDGET_EXCEEDED", reason: reserved.reason },
+      })
+      return payload({ ok: false, code: "BUDGET_EXCEEDED", reason: reserved.reason })
+    }
+    reservationId = reserved.reservationId
+  }
+
   let result: unknown
   try {
     result = await tool.execute(args, execOptions)
   } catch (error) {
+    if (reservationId) store.releaseReservation(reservationId)
     const reason = error instanceof Error ? error.message : String(error)
     record(store, options, {
       mandateId,
@@ -177,10 +198,9 @@ async function executeGuarded(
     return payload({ ok: false, code: "TOOL_ERROR", reason })
   }
 
-  // PayPal reports some failures in the payload rather than by throwing. A
-  // failed call must never move the budget.
   const failure = errorFromResult(result)
   if (failure) {
+    if (reservationId) store.releaseReservation(reservationId)
     record(store, options, {
       mandateId,
       agentId,
@@ -192,10 +212,8 @@ async function executeGuarded(
     return payload({ ok: false, code: "TOOL_ERROR", reason: failure })
   }
 
-  // Only now, after the call succeeded, does the budget move.
-  if (toolClass === "spend" && COMMITTING_TOOLS.has(action) && typeof proposal.amount === "number") {
-    store.commitSpend(mandateId, proposal.amount)
-  }
+  // The call succeeded: confirm the reservation so the money moves to committed spend.
+  if (reservationId) store.confirmReservation(reservationId)
 
   const externalRef = extractExternalRef(result)
 

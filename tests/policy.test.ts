@@ -15,7 +15,7 @@ function run(proposal: PaymentProposal, stateOrFixture?: Partial<MandateState> |
     envelope: fixture.envelope,
     state,
     proposal,
-    signingKey: TEST_KEY,
+    verificationKey: TEST_KEY,
     now: NOW,
   })
   return { decision, fixture }
@@ -95,14 +95,15 @@ describe("evaluate — mandate integrity", () => {
     }
     const decision = evaluate({
       envelope: forged,
-      state: {
-        mandateId: forged.claims.id,
-        revokedAt: null,
-        spendToDate: EUR(0),
-        transactionCount: 0,
-      },
+        state: {
+          mandateId: forged.claims.id,
+          revokedAt: null,
+          spendToDate: EUR(0),
+          reservedToDate: { amount: 0, currency: "EUR" },
+          transactionCount: 0,
+        },
       proposal: goodProposal(),
-      signingKey: TEST_KEY,
+      verificationKey: TEST_KEY,
       now: NOW,
     })
     expect(decision.allowed).toBe(false)
@@ -115,7 +116,7 @@ describe("evaluate — mandate integrity", () => {
       envelope: fixture.envelope,
       state: fixture.state,
       proposal: goodProposal(),
-      signingKey: TEST_KEY,
+      verificationKey: TEST_KEY,
       now: new Date("2026-01-05T00:00:00.000Z"),
     })
     expect(decision.allowed).toBe(false)
@@ -143,7 +144,7 @@ describe("evaluate — merchant constraints", () => {
       envelope: fixture.envelope,
       state: fixture.state,
       proposal: { ...goodProposal(), merchant: undefined },
-      signingKey: TEST_KEY,
+      verificationKey: TEST_KEY,
       now: NOW,
     })
     expect(decision.code).toBe("MERCHANT_REQUIRED")
@@ -155,7 +156,7 @@ describe("evaluate — merchant constraints", () => {
       envelope: fixture.envelope,
       state: fixture.state,
       proposal: { ...goodProposal(), merchant: "sketchy-deals" },
-      signingKey: TEST_KEY,
+      verificationKey: TEST_KEY,
       now: NOW,
     })
     expect(decision.code).toBe("MERCHANT_NOT_ALLOWED")
@@ -167,7 +168,7 @@ describe("evaluate — merchant constraints", () => {
       envelope: fixture.envelope,
       state: fixture.state,
       proposal: { ...goodProposal(), merchant: "acme-supplies" },
-      signingKey: TEST_KEY,
+      verificationKey: TEST_KEY,
       now: NOW,
     })
     expect(decision.allowed).toBe(true)
@@ -179,7 +180,7 @@ describe("evaluate — merchant constraints", () => {
       envelope: fixture.envelope,
       state: fixture.state,
       proposal: goodProposal(),
-      signingKey: TEST_KEY,
+      verificationKey: TEST_KEY,
       now: NOW,
     })
     expect(decision.code).toBe("MERCHANT_DENIED")
@@ -193,7 +194,7 @@ describe("evaluate — category and amount rules", () => {
       envelope: fixture.envelope,
       state: fixture.state,
       proposal: goodProposal(),
-      signingKey: TEST_KEY,
+      verificationKey: TEST_KEY,
       now: NOW,
     })
     expect(decision.code).toBe("CATEGORY_NOT_ALLOWED")
@@ -234,7 +235,7 @@ describe("evaluate — spending limits", () => {
       envelope: fixture.envelope,
       state: fixture.state,
       proposal: goodProposal(),
-      signingKey: TEST_KEY,
+      verificationKey: TEST_KEY,
       now: NOW,
     })
     expect(decision.code).toBe("MAX_PER_TRANSACTION_EXCEEDED")
@@ -246,7 +247,7 @@ describe("evaluate — spending limits", () => {
       envelope: fixture.envelope,
       state: { ...fixture.state, transactionCount: 2 },
       proposal: goodProposal(),
-      signingKey: TEST_KEY,
+      verificationKey: TEST_KEY,
       now: NOW,
     })
     expect(decision.code).toBe("MAX_TRANSACTIONS_EXCEEDED")
@@ -258,7 +259,7 @@ describe("evaluate — spending limits", () => {
       envelope: fixture.envelope,
       state: { ...fixture.state, spendToDate: EUR(49_000) },
       proposal: goodProposal(),
-      signingKey: TEST_KEY,
+      verificationKey: TEST_KEY,
       now: NOW,
     })
     expect(decision.code).toBe("BUDGET_EXCEEDED")
@@ -270,7 +271,7 @@ describe("evaluate — spending limits", () => {
       envelope: fixture.envelope,
       state: { ...fixture.state, spendToDate: EUR(47_500) },
       proposal: goodProposal(),
-      signingKey: TEST_KEY,
+      verificationKey: TEST_KEY,
       now: NOW,
     })
     expect(decision.allowed).toBe(true)
@@ -286,7 +287,7 @@ describe("evaluate — escalation", () => {
       envelope: fixture.envelope,
       state: fixture.state,
       proposal: goodProposal(),
-      signingKey: TEST_KEY,
+      verificationKey: TEST_KEY,
       now: NOW,
     })
     expect(decision.allowed).toBe(false)
@@ -302,7 +303,7 @@ describe("evaluate — escalation", () => {
       envelope: fixture.envelope,
       state: fixture.state,
       proposal: goodProposal(),
-      signingKey: TEST_KEY,
+      verificationKey: TEST_KEY,
       now: NOW,
     })
     expect(decision.allowed).toBe(true)
