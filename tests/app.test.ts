@@ -11,11 +11,12 @@ const ADMIN_TOKEN = "test-admin-token"
 
 let server: Server
 let base: string
+let store: Store
 let mandateId: string
 let snapshotMandate: Record<string, unknown>
 
 beforeAll(async () => {
-  const store = new Store(TEST_KEY)
+  store = new Store(TEST_KEY)
   const { envelope } = store.issue({
     principal: "filippo@example.com",
     agentId: "agent-procurement-01",
@@ -101,6 +102,73 @@ describe("public mandate verification", () => {
     })
     const body = (await response.json()) as { ok: boolean; signatureValid: boolean }
     expect(body.signatureValid).toBe(false)
+    expect(body.ok).toBe(false)
+  })
+})
+
+describe("stored mandate verification (GET)", () => {
+  const issue = () =>
+    store.issue({
+      principal: "filippo@example.com",
+      agentId: "agent-procurement-01",
+      budget: { amount: 12_000, currency: "USD" },
+      purpose: "Restock office supplies",
+      now: new Date(),
+    }).envelope.claims.id
+
+  it("verifies a stored mandate by id using only the public key", async () => {
+    const response = await fetch(`${base}/api/mandates/${mandateId}/verify`)
+    const body = (await response.json()) as {
+      ok: boolean
+      algorithm: string
+      signatureValid: boolean
+      claimsValid: boolean
+      revoked: boolean
+      claims: { id: string }
+    }
+
+    expect(response.status).toBe(200)
+    expect(body.ok).toBe(true)
+    expect(body.algorithm).toBe("Ed25519")
+    expect(body.signatureValid).toBe(true)
+    expect(body.claimsValid).toBe(true)
+    expect(body.revoked).toBe(false)
+    expect(body.claims.id).toBe(mandateId)
+  })
+
+  it("returns 404 for an unknown mandate id", async () => {
+    const response = await fetch(`${base}/api/mandates/does-not-exist/verify`)
+    expect(response.status).toBe(404)
+  })
+
+  it("reports a tampered stored mandate as invalid", async () => {
+    const id = issue()
+    store.get(id)!.envelope.claims.budget.amount = 999_999
+
+    const response = await fetch(`${base}/api/mandates/${id}/verify`)
+    const body = (await response.json()) as { ok: boolean; signatureValid: boolean }
+
+    expect(response.status).toBe(200)
+    expect(body.signatureValid).toBe(false)
+    expect(body.ok).toBe(false)
+  })
+
+  it("reports a revoked mandate as not ok even though its signature is valid", async () => {
+    const id = issue()
+    store.revoke(id)
+
+    const response = await fetch(`${base}/api/mandates/${id}/verify`)
+    const body = (await response.json()) as {
+      ok: boolean
+      signatureValid: boolean
+      revoked: boolean
+      revokedAt: string | null
+    }
+
+    expect(response.status).toBe(200)
+    expect(body.signatureValid).toBe(true)
+    expect(body.revoked).toBe(true)
+    expect(body.revokedAt).not.toBeNull()
     expect(body.ok).toBe(false)
   })
 })

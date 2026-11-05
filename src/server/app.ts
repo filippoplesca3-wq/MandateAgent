@@ -427,6 +427,42 @@ export function createApp(config: ServerConfig): ServerHandle {
   })
 
   /**
+   * Verify a stored mandate by id using only the public key. This is the
+   * merchant-facing check: no shared secret, no access to the issuer's store.
+   */
+  app.get("/api/mandates/:id/verify", (req, res, next) => {
+    try {
+      const params = validateBody(approvalParams, req.params, next)
+      if (!params) return
+
+      const stored = store.get(params.id)
+      if (!stored) {
+        res.status(404).json({ ok: false, error: `no mandate with id ${params.id}` })
+        return
+      }
+
+      const signature = verifySignature(stored.envelope, store.verificationKey)
+      const claims = validateClaims(stored.envelope.claims)
+      const revoked = stored.state.revokedAt !== null
+
+      res.json({
+        ok: signature.valid && claims.valid && !revoked,
+        mandateId: stored.envelope.claims.id,
+        algorithm: stored.envelope.algorithm,
+        signatureValid: signature.valid,
+        signatureReason: signature.reason,
+        claimsValid: claims.valid,
+        claimsReason: claims.reason,
+        revoked,
+        revokedAt: stored.state.revokedAt,
+        claims: stored.envelope.claims,
+      })
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  /**
    * Verify a mandate with the server key, or with any public key supplied by
    * the caller. This is what makes the mandate portable: a merchant only needs
    * the signed envelope and a trusted public key.

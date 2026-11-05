@@ -327,6 +327,22 @@ curl -X POST http://localhost:3001/api/verify-mandate \
 claims. Pass `publicKey` (base64 SPKI DER) to verify with a key you already
 trust instead of the server's.
 
+A stored mandate can also be checked by id without sending the envelope:
+
+```bash
+curl http://localhost:3001/api/mandates/<id>/verify
+```
+
+`GET /api/mandates/:id/verify` returns `signatureValid`, `claimsValid`,
+`revoked`, `revokedAt` and the claims. It uses only the public key and the
+stored state, so a merchant can check a mandate before accepting it. An unknown
+id is a `404`; a tampered or revoked mandate returns `ok: false` with the reason.
+
+HMAC-SHA256 envelopes remain verifiable for backwards compatibility: the same
+`POST /api/verify-mandate` accepts them and compares the signature with
+`crypto.timingSafeEqual`. Unknown algorithms are rejected. New mandates are
+always Ed25519.
+
 ## Architecture
 
 Two layers, with a hard boundary between them.
@@ -433,7 +449,9 @@ scripts/record.ts one real run, captured as replay frames
 - PayPal's toolkit currently accepts `USD` only, so the demo does.
 - Mandate signatures are Ed25519. The issuer signs with a private key and
   publishes the SPKI public key; merchants verify with `POST
-  /api/verify-mandate` and never need the signing secret.
+  /api/verify-mandate` or `GET /api/mandates/:id/verify` and never need the
+  signing secret. HMAC-SHA256 envelopes from earlier versions are still
+  accepted and compared in constant time; new mandates are always Ed25519.
 - The simulator is a test double, not a PayPal emulator. It exists so the demo
   and the test suite can run deterministically offline.
 - The hosted replay is a recording, not an animation written to look like one:
