@@ -4,7 +4,7 @@
 
 /**
  * PAYPAL_MERCHANT_ALIASES maps PayPal identifiers to the names a mandate uses,
- * e.g. "HM98ZL79EKJ6Q=acme-supplies,sb-shop@business.example.com=acme-supplies".
+ * e.g. "MERCHANT123456789=acme-supplies,sb-shop@business.example.com=acme-supplies".
  */
 export function parseMerchantAliases(raw: string | undefined): Record<string, string> | undefined {
   if (!raw) return undefined

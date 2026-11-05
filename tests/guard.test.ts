@@ -192,7 +192,7 @@ describe("guard â€” pay_order", () => {
 
 describe("guard — live toolkit responses", () => {
   const LIVE_ORDER = "ORDLIVE00000000001"
-  const LIVE_MERCHANT_ID = "HM98ZL79EKJ6Q"
+  const LIVE_MERCHANT_ID = "MERCHANT123456789"
 
   function liveTools(capture: unknown): ToolSet {
     return {

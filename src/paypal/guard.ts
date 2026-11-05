@@ -40,7 +40,7 @@ export interface GuardOptions {
   /**
    * Maps PayPal's own merchant identifiers (merchant id or email address) to
    * the names a mandate uses. A mandate says "acme-supplies"; PayPal says
-   * "HM98ZL79EKJ6Q". Without this the live path cannot match the two.
+   * "MERCHANT123456789". Without this the live path cannot match the two.
    */
   merchantAliases?: Record<string, string>
   /** Whether to put read-only calls in the ledger. Off by default. */
