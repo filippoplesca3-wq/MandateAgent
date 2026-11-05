@@ -112,6 +112,48 @@ PAYPAL_MERCHANT_ALIASES=ABC123XYZ=acme-supplies,business@example.com=acme-suppli
 The panel is hidden in simulated and replay modes, so the hosted demo never
 shows a button that cannot work.
 
+### Live mode check
+
+One command proves the live path:
+
+```bash
+npm run check:live
+```
+
+It validates the environment, creates a real PayPal **sandbox** order through the
+guard, runs the Gemini agent once against the demo mandate, and prints the
+ledger plus the remaining budget. It refuses to run when
+`PAYPAL_ENVIRONMENT=LIVE`, so it can never move real money.
+
+Exact setup:
+
+1. **PayPal sandbox app** — open
+   [developer.paypal.com](https://developer.paypal.com/dashboard/applications/sandbox),
+   create an app under *Sandbox*, and copy its client id and secret. The default
+   sandbox business account receives the money; map its merchant id (or account
+   email) to the mandate's merchant name:
+   `PAYPAL_MERCHANT_ALIASES=<merchant id>=acme-supplies`.
+2. **Gemini key** — create a free key at
+   [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
+3. **`.env`** — fill in:
+
+   ```bash
+   PAYPAL_CLIENT_ID=...
+   PAYPAL_CLIENT_SECRET=...
+   PAYPAL_ENVIRONMENT=SANDBOX
+   PAYPAL_MERCHANT_ALIASES=<merchant id>=acme-supplies
+   GOOGLE_GENERATIVE_AI_API_KEY=...
+   MANDATE_SIGNING_KEY=<long random string>
+   ```
+
+4. Run `npm run check:live`.
+
+Expected output: the PayPal mode, a sandbox order id, a `payer-action` link, the
+agent's report, and the ledger. Exit code `1` means a missing variable, a
+refused order, or a failed model call; the message says which. The order is not
+captured until a sandbox **personal** account approves it in the browser — that
+is PayPal's payer flow, not a failure.
+
 ### Declined payments
 
 Happy paths are easy; declines are where budgets usually leak. PayPal's sandbox
@@ -371,6 +413,7 @@ src/web/       React console, AG Grid ledger
 replays/       recorded run served by the hosted demo
 tests/         vitest suite
 scripts/e2e.ts end-to-end run printed to the terminal
+scripts/check-live.ts env check, live sandbox order, one Gemini run, ledger
 scripts/live-check.ts one live sandbox order through the guard
 scripts/decline-check.ts forced decline, proving no budget moves
 scripts/record.ts one real run, captured as replay frames
