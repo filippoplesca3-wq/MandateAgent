@@ -508,9 +508,10 @@ const TRY_PRESETS: {
 /**
  * The one interactive thing on the hosted demo that needs neither a Gemini key
  * nor a PayPal account: a dry run against the current mandate. It calls the
- * same evaluator the guard uses and returns its verdict, recording nothing.
+ * same evaluator the guard uses and returns its verdict. The injection preset
+ * is the exception: it runs the scripted attack and records the refusal.
  */
-function TryPanel() {
+function TryPanel(props: { readOnly?: boolean }) {
   const [amount, setAmount] = useState("12.00")
   const [merchant, setMerchant] = useState("acme-supplies")
   const [busy, setBusy] = useState(false)
@@ -583,7 +584,11 @@ function TryPanel() {
   return (
     <Panel
       title="Test a payment"
-      subtitle="Dry run against the mandate. The injection preset records its refusal in the ledger."
+      subtitle={
+        props.readOnly
+          ? "Dry run against the mandate. The scripted attack is available when you run locally."
+          : "Dry run against the mandate. The injection preset is a scripted attack; its refusal is recorded."
+      }
     >
       <div className="try-chips">
         {TRY_PRESETS.map((item) => (
@@ -591,7 +596,12 @@ function TryPanel() {
             key={item.label}
             className="chip"
             type="button"
-            disabled={busy}
+            disabled={busy || (item.injection && props.readOnly)}
+            title={
+              item.injection && props.readOnly
+                ? "The hosted demo is a read-only recording. Run locally to trigger the scripted attack."
+                : undefined
+            }
             onClick={() => (item.injection ? void inject() : preset(item.amount, item.merchant))}
           >
             {item.label}
@@ -1240,7 +1250,7 @@ export function App() {
 
         <div className="side">
           <CheckoutPanel active={!revoked && !expired} />
-          <TryPanel />
+          <TryPanel readOnly={readOnly} />
 
           <ApprovalsPanel
             approvals={state.approvals}
