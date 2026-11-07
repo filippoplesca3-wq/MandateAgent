@@ -8,7 +8,7 @@ each one, the test that proves it, and the deliberate demo limits — is in
 ## Reporting a vulnerability
 
 Open a private security advisory on
-[the repository](https://github.com/filippooplesca3-wq/MandateAgent/security/advisories)
+[the repository](https://github.com/filippoplesca3-wq/MandateAgent/security/advisories)
 rather than a public issue. Please include the affected route or module, a
 reproduction, and the impact you believe it has.
 

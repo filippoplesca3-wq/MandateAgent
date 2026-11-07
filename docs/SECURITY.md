@@ -73,7 +73,7 @@ These are deliberate demo boundaries, not hidden assumptions:
 ## Reporting
 
 Open a private security advisory on
-[the repository](https://github.com/filippooplesca3-wq/MandateAgent/security/advisories)
+[the repository](https://github.com/filippoplesca3-wq/MandateAgent/security/advisories)
 rather than a public issue.
 
 ## Verify it yourself

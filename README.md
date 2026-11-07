@@ -2,7 +2,7 @@
 
 **Signed spending authority for AI agents on PayPal.**
 
-[![CI](https://github.com/filippooplesca3-wq/MandateAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/filippooplesca3-wq/MandateAgent/actions/workflows/ci.yml)
+[![CI](https://github.com/filippoplesca3-wq/MandateAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/filippoplesca3-wq/MandateAgent/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Tests: 193](https://img.shields.io/badge/tests-193%20passing-brightgreen.svg)](#tests)
 
@@ -25,7 +25,7 @@ approved by a human, $99 denied, and every decision in the ledger.*
 | --- | --- |
 | **Live demo** | https://agent-mandate.onrender.com *(replace after deploy)* |
 | **Video (under 3 min)** | https://youtu.be/... *(placeholder — public YouTube link)* |
-| **Source** | https://github.com/filippooplesca3-wq/MandateAgent |
+| **Source** | https://github.com/filippoplesca3-wq/MandateAgent |
 | **License** | MIT |
 
 ## Judge in 90 seconds
@@ -308,7 +308,7 @@ run panel. It is used for that single request and never stored or logged.
 
 ## Deploy on Render (free)
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/filippooplesca3-wq/MandateAgent)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/filippoplesca3-wq/MandateAgent)
 
 `render.yaml` is included:
 

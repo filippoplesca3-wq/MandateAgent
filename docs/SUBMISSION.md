@@ -171,11 +171,11 @@ MCP, Docker, Render.
 | --- | --- |
 | **Hosted demo (replay, no credentials)** | `https://agent-mandate.onrender.com` — **replace after deploy** |
 | **Video (under 3 minutes)** | `https://youtu.be/...` — **replace after upload** |
-| **Source code** | https://github.com/filippooplesca3-wq/MandateAgent |
+| **Source code** | https://github.com/filippoplesca3-wq/MandateAgent |
 | **License** | MIT |
 | **Live check** | `npm run check:live` (sandbox only; refuses live money) |
-| **Architecture** | https://github.com/filippooplesca3-wq/MandateAgent/blob/main/docs/ARCHITECTURE.md |
-| **Security model** | https://github.com/filippooplesca3-wq/MandateAgent/blob/main/docs/SECURITY.md |
+| **Architecture** | https://github.com/filippoplesca3-wq/MandateAgent/blob/main/docs/ARCHITECTURE.md |
+| **Security model** | https://github.com/filippoplesca3-wq/MandateAgent/blob/main/docs/SECURITY.md |
 
 The hosted demo is a **read-only recording of a real Gemini run**, clearly
 labelled `replay` in the header. It makes no PayPal or Gemini calls and needs no
