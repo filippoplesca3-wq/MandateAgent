@@ -612,12 +612,17 @@ code,
 
 .signature {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
   gap: 8px;
   padding-top: 13px;
   border-top: 1px solid var(--border-soft);
   font-size: 11px;
+}
+
+.signature .verdict,
+.signature .alert {
+  grid-column: 1 / -1;
 }
 
 .signature code {

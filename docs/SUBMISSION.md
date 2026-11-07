@@ -182,8 +182,9 @@ labelled `replay` in the header. It makes no PayPal or Gemini calls and needs no
 secrets. It starts with a pre-seeded demo mandate.
 
 Screenshots for the Devpost gallery are in `docs/screenshots/`:
-`console.png` (the console after one run), `ledger.png` (the three outcomes) and
-`injection-denied.png` (the scripted attack refused).
+`console.png` (the console after one run), `ledger.png` (the three outcomes),
+`injection-denied.png` (the scripted attack refused) and
+`signature-verified.png` (the mandate verified against the recording key).
 
 ## Judge testing instructions
 
@@ -198,8 +199,9 @@ Screenshots for the Devpost gallery are in `docs/screenshots/`:
    sketchy-deals (injection)** preset is a deterministic, scripted attack; on
    the hosted replay it is disabled because writes are refused. Run locally to
    trigger it and see the refusal appended to the ledger.
-4. Verify the mandate on screen without trusting the page. The hosted demo
-   publishes the recording's own public key (`source: "recording"`), and
+4. Verify the mandate on screen without trusting the page. Press **Verify** next
+   to the signature, or call the API. The hosted demo publishes the recording's
+   own public key (`source: "recording"`), and
    `GET /api/mandates/<id>/verify` returns `ok: true` for the recorded id. Send
    the same envelope back with a raised budget and it returns
    `signatureValid: false`:

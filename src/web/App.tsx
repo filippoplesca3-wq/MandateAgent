@@ -268,8 +268,76 @@ function MandateCard(props: {
         <span className="constraint-label">Signature</span>
         <code title={mandate.signature}>{shortId(mandate.signature, 26)}…</code>
         <span className="muted">{mandate.algorithm}</span>
+        <SignatureCheck mandateId={claims.id} signature={mandate.signature} algorithm={mandate.algorithm} />
       </div>
     </Panel>
+  )
+}
+
+interface VerifyResult {
+  ok: boolean
+  signatureValid: boolean
+  claimsValid: boolean
+  revoked: boolean
+  algorithm: string
+  source?: string
+  signatureReason?: string
+  claimsReason?: string
+}
+
+/**
+ * Prove the mandate on screen against the public key, in the browser.
+ *
+ * On the hosted replay the endpoint returns the key the recording was signed
+ * with (`source: "recording"`), so a judge can check the signature without
+ * trusting the page or running curl.
+ */
+function SignatureCheck(props: { mandateId: string; signature: string; algorithm: string }) {
+  const [result, setResult] = useState<VerifyResult | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const check = useCallback(async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      setResult(await api<VerifyResult>(`/api/mandates/${props.mandateId}/verify`))
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught))
+    } finally {
+      setBusy(false)
+    }
+  }, [props.mandateId])
+
+  return (
+    <>
+      <button
+        className="btn ghost sm"
+        type="button"
+        onClick={() => void check()}
+        disabled={busy}
+        title="Verify the signature against the public key"
+      >
+        {busy ? "Verifying…" : "Verify"}
+      </button>
+      {error ? <div className="alert error">{error}</div> : null}
+      {result ? (
+        <div className={`verdict ${result.ok ? "allowed" : "denied"}`}>
+          <span className="verdict-label">
+            {result.ok ? "SIGNATURE VALID" : "SIGNATURE INVALID"}
+          </span>
+          <code>
+            {result.algorithm}
+            {result.source === "recording" ? " · recorded key" : " · server key"}
+          </code>
+          <p>
+            signature {result.signatureValid ? "verified" : "failed"} · claims{" "}
+            {result.claimsValid ? "valid" : "invalid"}
+            {result.revoked ? " · mandate revoked" : ""}
+          </p>
+        </div>
+      ) : null}
+    </>
   )
 }
 

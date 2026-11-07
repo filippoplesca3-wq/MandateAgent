@@ -436,6 +436,14 @@ endpoints return `source: "recording"`, and the same envelope is rejected once
 its claims are widened. The serving process still boots with an ephemeral key
 of its own, so the demo needs no signing secret.
 
+The console has a **Verify** button next to the signature, so a judge can check
+the mandate in one click without copying a key:
+
+![Verify the mandate against the public key](docs/screenshots/signature-verified.png)
+
+*`SIGNATURE VALID · Ed25519 · recorded key` — the hosted replay proves the
+mandate on screen with the key it was recorded with.*
+
 HMAC-SHA256 envelopes remain verifiable for backwards compatibility: the same
 `POST /api/verify-mandate` accepts them and compares the signature with
 `crypto.timingSafeEqual`. Unknown algorithms are rejected. New mandates are
