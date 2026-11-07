@@ -37,9 +37,12 @@ approved by a human, $99 denied, and every decision in the ledger.*
    escalated and approved, $99 denied at `sketchy-deals`.
 3. **Try a policy check.** The **Test a payment** presets run a real dry-run
    evaluation against the pre-seeded mandate.
-4. **Run the proof.** `npm ci && npm test` (193 tests) and `npm run check:live`
+4. **Verify the mandate.** Press **Verify** next to the signature. The console
+   shows `SIGNATURE VALID · Ed25519 · recorded key`: the mandate on screen
+   checks out against the key the recording was signed with.
+5. **Run the proof.** `npm ci && npm test` (193 tests) and `npm run check:live`
    (real PayPal sandbox + Gemini).
-5. **Go deeper:** [architecture](docs/ARCHITECTURE.md),
+6. **Go deeper:** [architecture](docs/ARCHITECTURE.md),
    [security model](docs/SECURITY.md), [Devpost copy](docs/SUBMISSION.md),
    [demo script](docs/DEMO_SCRIPT.md).
 
