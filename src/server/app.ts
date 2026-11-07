@@ -160,12 +160,33 @@ class CheckoutRefused extends Error {
   }
 }
 
+/**
+ * Parse the SPKI base64 public key embedded in a recording.
+ *
+ * A hosted replay boots with its own ephemeral signing key, so verifying the
+ * recorded mandate against the server key would fail. The recording carries
+ * the public half of the key it was signed with; this turns it back into a
+ * KeyObject. A malformed key returns null rather than crashing the demo.
+ */
+function publicKeyFromBase64(encoded: string | null | undefined): KeyObject | null {
+  if (!encoded) return null
+  try {
+    return createPublicKey({ key: Buffer.from(encoded, "base64"), format: "der", type: "spki" })
+  } catch {
+    return null
+  }
+}
+
 export function createApp(config: ServerConfig): ServerHandle {
   const { store, rawTools, agentId, merchantId } = config
   const app = express()
 
   let mandateId = config.mandateId
   let running = false
+
+  // In a hosted replay the mandate on screen was signed by the recording key,
+  // not by this process's ephemeral key.
+  const replayPublicKey = publicKeyFromBase64(config.replay?.publicKey)
 
   const checkoutEnabled =
     config.mode === "live" && config.paypalSandbox === true && Boolean(config.paypalClientId)
@@ -416,20 +437,27 @@ export function createApp(config: ServerConfig): ServerHandle {
 
   /**
    * The public half of the mandate signing key. A merchant can hold this and
-   * verify a mandate without ever seeing the server's secret.
+   * verify a mandate without ever seeing the server's secret. In replay this
+   * is the key the recording was signed with, so the mandate on screen
+   * verifies against the key the demo publishes.
    */
   app.get("/api/mandate/public-key", (_req, res) => {
+    const recording = config.replay !== undefined
     res.json({
       ok: true,
       algorithm: "Ed25519",
       format: "spki-der-base64",
-      publicKey: store.publicKeyBase64,
+      source: recording ? "recording" : "server",
+      publicKey: config.replay?.publicKey ?? store.publicKeyBase64,
     })
   })
 
   /**
    * Verify a stored mandate by id using only the public key. This is the
    * merchant-facing check: no shared secret, no access to the issuer's store.
+   *
+   * A replay has no live store entry for the recorded mandate, so it is
+   * verified directly from the recording with the recording's public key.
    */
   app.get("/api/mandates/:id/verify", (req, res, next) => {
     try {
@@ -438,6 +466,28 @@ export function createApp(config: ServerConfig): ServerHandle {
 
       const stored = store.get(params.id)
       if (!stored) {
+        const recorded = config.replay?.recordedMandate
+        if (recorded && recorded.claims.id === params.id && replayPublicKey) {
+          const signature = verifySignature(recorded, replayPublicKey)
+          const claims = validateClaims(recorded.claims)
+          const revoked = recorded.revokedAt !== null
+
+          res.json({
+            ok: signature.valid && claims.valid && !revoked,
+            mandateId: recorded.claims.id,
+            algorithm: recorded.algorithm,
+            signatureValid: signature.valid,
+            signatureReason: signature.reason,
+            claimsValid: claims.valid,
+            claimsReason: claims.reason,
+            revoked,
+            revokedAt: recorded.revokedAt,
+            claims: recorded.claims,
+            source: "recording",
+          })
+          return
+        }
+
         res.status(404).json({ ok: false, error: `no mandate with id ${params.id}` })
         return
       }
@@ -457,6 +507,7 @@ export function createApp(config: ServerConfig): ServerHandle {
         revoked,
         revokedAt: stored.state.revokedAt,
         claims: stored.envelope.claims,
+        source: "server",
       })
     } catch (error) {
       next(error)
@@ -483,7 +534,9 @@ export function createApp(config: ServerConfig): ServerHandle {
         throw new BadRequest("body must contain a mandate envelope with claims and signature")
       }
 
-      let key: KeyObject | string = store.verificationKey
+      // In replay the mandate on screen was signed with the recording key;
+      // default to it so a visitor can verify without copying a key by hand.
+      let key: KeyObject | string = replayPublicKey ?? store.verificationKey
       const provided = stringFrom(body["publicKey"])
       if (provided) {
         try {

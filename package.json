@@ -6,7 +6,7 @@
   "description": "Scoped delegation and verifiable trust for AI agent commerce on PayPal.",
   "license": "MIT",
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "scripts": {
     "dev": "concurrently -n api,web -c cyan,magenta \"npm:dev:api\" \"npm:dev:web\"",
@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify": "npm test && npm run build",
     "e2e": "tsx scripts/e2e.ts",
     "check:live": "tsx scripts/check-live.ts",
     "live:check": "tsx scripts/live-check.ts",

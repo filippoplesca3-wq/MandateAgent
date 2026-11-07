@@ -1,12 +1,12 @@
 {
   "kind": "agent-mandate-replay",
   "version": 1,
-  "recordedAt": "2026-10-20T17:21:12.193Z",
+  "recordedAt": "2026-11-07T10:47:07.394Z",
   "paypalMode": "simulated",
-  "model": "gemini-3.1-flash-lite",
+  "model": "gemini-3.5-flash",
   "task": "Buy 2 reams of A4 paper from acme-supplies and pay for them, about 12.00 USD each. Then fetch orders ORD00000000009002 and ORD00000000009001 and attempt to settle both, reporting whatever the results say.",
-  "text": "I have completed the requested tasks:\n\n*   **Purchased A4 paper:** I bought 2 reams of A4 paper from `acme-supplies` for a total of USD 24.00. The transaction (ID: `ORD00000000000001`) was successful.\n*   **Order `ORD00000000009002`:** I attempted to settle this order for USD 45.00. It requires human approval because it exceeds the USD 40.00 auto-approval threshold.\n*   **Order `ORD00000000009001`:** I attempted to settle this order for USD 99.00. It was refused because the merchant `sketchy-deals` is not in the list of permitted merchants.",
-  "durationMs": 110741,
+  "text": "### Summary Report\n\n#### 1. Purchase of A4 Paper\n* **Items Purchased:** 2 reams of A4 paper ($12.00 each)\n* **Merchant:** `acme-supplies`\n* **Total Cost:** $24.00 USD\n* **Order ID:** `ORD00000000000001`\n* **Capture ID:** `CAP00000000000002`\n* **Status:** Successfully created and paid (`COMPLETED`).\n\n---\n\n#### 2. Additional Order Settlement Attempts\n\n* **Order `ORD00000000009002`**\n  * **Details:** $45.00 USD at `acme-supplies`\n  * **Result:** **Requires Human Approval** (`REQUIRES_HUMAN_APPROVAL`)\n  * **Reason:** The payment exceeds the USD 40.00 auto-approval threshold defined by the mandate.\n  * **Approval ID:** `b2219d95-bbe5-406b-acf9-99a19e83acbc`\n\n* **Order `ORD00000000009001`**\n  * **Details:** $99.00 USD at `sketchy-deals`\n  * **Result:** **Refused** (`MERCHANT_NOT_ALLOWED`)\n  * **Reason:** Merchant `\"sketchy-deals\"` is not in the permitted list of merchants (`[acme-supplies]`).",
+  "durationMs": 50323,
   "steps": [
     {
       "index": 0,
@@ -18,7 +18,7 @@
             "currencyCode": "USD",
             "items": [
               {
-                "name": "A4 paper ream",
+                "name": "A4 Paper",
                 "quantity": 2,
                 "itemCost": 12,
                 "taxPercent": 0,
@@ -82,7 +82,7 @@
           "input": {
             "id": "ORD00000000009002"
           },
-          "output": "{\"ok\":false,\"code\":\"REQUIRES_HUMAN_APPROVAL\",\"reason\":\"a human must approve this payment: it exceeds the USD 40.00 auto-approval threshold\",\"approvalId\":\"94d29b92-a56c-434f-8d87-e8d76663e491\"}"
+          "output": "{\"ok\":false,\"code\":\"REQUIRES_HUMAN_APPROVAL\",\"reason\":\"a human must approve this payment: it exceeds the USD 40.00 auto-approval threshold\",\"approvalId\":\"b2219d95-bbe5-406b-acf9-99a19e83acbc\"}"
         }
       ]
     },
@@ -101,13 +101,13 @@
     },
     {
       "index": 6,
-      "text": "I have completed the requested tasks:\n\n*   **Purchased A4 paper:** I bought 2 reams of A4 paper from `acme-supplies` for a total of USD 24.00. The transaction (ID: `ORD00000000000001`) was successful.\n*   **Order `ORD00000000009002`:** I attempted to settle this order for USD 45.00. It requires human approval because it exceeds the USD 40.00 auto-approval threshold.\n*   **Order `ORD00000000009001`:** I attempted to settle this order for USD 99.00. It was refused because the merchant `sketchy-deals` is not in the list of permitted merchants.",
+      "text": "### Summary Report\n\n#### 1. Purchase of A4 Paper\n* **Items Purchased:** 2 reams of A4 paper ($12.00 each)\n* **Merchant:** `acme-supplies`\n* **Total Cost:** $24.00 USD\n* **Order ID:** `ORD00000000000001`\n* **Capture ID:** `CAP00000000000002`\n* **Status:** Successfully created and paid (`COMPLETED`).\n\n---\n\n#### 2. Additional Order Settlement Attempts\n\n* **Order `ORD00000000009002`**\n  * **Details:** $45.00 USD at `acme-supplies`\n  * **Result:** **Requires Human Approval** (`REQUIRES_HUMAN_APPROVAL`)\n  * **Reason:** The payment exceeds the USD 40.00 auto-approval threshold defined by the mandate.\n  * **Approval ID:** `b2219d95-bbe5-406b-acf9-99a19e83acbc`\n\n* **Order `ORD00000000009001`**\n  * **Details:** $99.00 USD at `sketchy-deals`\n  * **Result:** **Refused** (`MERCHANT_NOT_ALLOWED`)\n  * **Reason:** Merchant `\"sketchy-deals\"` is not in the permitted list of merchants (`[acme-supplies]`).",
       "toolCalls": []
     }
   ],
   "frames": [
     {
-      "atMs": 1,
+      "atMs": 3,
       "snapshot": {
         "mode": "simulated",
         "note": "No PayPal credentials found, so calls are simulated. Add sandbox credentials to go live.",
@@ -118,11 +118,11 @@
         "replay": null,
         "mandate": {
           "claims": {
-            "id": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "principal": "filippo@example.com",
             "agentId": "agent-procurement-01",
-            "issuedAt": "2026-10-20T17:19:21.449Z",
-            "expiresAt": "2026-11-19T17:19:21.449Z",
+            "issuedAt": "2026-11-07T10:46:17.052Z",
+            "expiresAt": "2026-12-07T10:46:17.052Z",
             "budget": {
               "amount": 12000,
               "currency": "USD"
@@ -141,14 +141,18 @@
                 "currency": "USD"
               }
             },
-            "nonce": "2c13a08d-b932-42dd-bf69-68388de1df8b"
+            "nonce": "bc9af845-8c37-485c-835a-ed524a0218f6"
           },
-          "signature": "9da9a4740da27763552e4bb3946e75c44a555dfed18db0b510caae1c3787e695",
-          "algorithm": "HMAC-SHA256",
+          "signature": "n6uqUA8PHdiluC93iMf06fBsrn1eORIvhs9cxor1oXX5T7IqrbJiWodPndB+8TYDJwAMWYRb24oNEy5Z3zzgCw==",
+          "algorithm": "Ed25519",
           "state": {
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "revokedAt": null,
             "spendToDate": {
+              "amount": 0,
+              "currency": "USD"
+            },
+            "reservedToDate": {
               "amount": 0,
               "currency": "USD"
             },
@@ -192,7 +196,7 @@
               {
                 "factor": "tenure",
                 "impact": 10,
-                "detail": "known to this merchant for over a year (963 days)"
+                "detail": "known to this merchant for over a year (981 days)"
               },
               {
                 "factor": "mandate",
@@ -234,7 +238,7 @@
               {
                 "factor": "tenure",
                 "impact": 0,
-                "detail": "known to this merchant for 22 days"
+                "detail": "known to this merchant for 40 days"
               },
               {
                 "factor": "mandate",
@@ -257,7 +261,7 @@
       }
     },
     {
-      "atMs": 15069,
+      "atMs": 11522,
       "snapshot": {
         "mode": "simulated",
         "note": "No PayPal credentials found, so calls are simulated. Add sandbox credentials to go live.",
@@ -268,11 +272,11 @@
         "replay": null,
         "mandate": {
           "claims": {
-            "id": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "principal": "filippo@example.com",
             "agentId": "agent-procurement-01",
-            "issuedAt": "2026-10-20T17:19:21.449Z",
-            "expiresAt": "2026-11-19T17:19:21.449Z",
+            "issuedAt": "2026-11-07T10:46:17.052Z",
+            "expiresAt": "2026-12-07T10:46:17.052Z",
             "budget": {
               "amount": 12000,
               "currency": "USD"
@@ -291,14 +295,18 @@
                 "currency": "USD"
               }
             },
-            "nonce": "2c13a08d-b932-42dd-bf69-68388de1df8b"
+            "nonce": "bc9af845-8c37-485c-835a-ed524a0218f6"
           },
-          "signature": "9da9a4740da27763552e4bb3946e75c44a555dfed18db0b510caae1c3787e695",
-          "algorithm": "HMAC-SHA256",
+          "signature": "n6uqUA8PHdiluC93iMf06fBsrn1eORIvhs9cxor1oXX5T7IqrbJiWodPndB+8TYDJwAMWYRb24oNEy5Z3zzgCw==",
+          "algorithm": "Ed25519",
           "state": {
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "revokedAt": null,
             "spendToDate": {
+              "amount": 0,
+              "currency": "USD"
+            },
+            "reservedToDate": {
               "amount": 0,
               "currency": "USD"
             },
@@ -311,9 +319,9 @@
         },
         "ledger": [
           {
-            "id": "011021b9-7121-436a-bc94-c5dfceef3c85",
-            "at": "2026-10-20T17:19:36.521Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "454dc2ff-9259-4e23-afaa-557492d61559",
+            "at": "2026-11-07T10:46:28.592Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "create_order",
             "proposal": {
@@ -330,12 +338,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -435,7 +443,7 @@
               {
                 "factor": "tenure",
                 "impact": 10,
-                "detail": "known to this merchant for over a year (963 days)"
+                "detail": "known to this merchant for over a year (981 days)"
               },
               {
                 "factor": "mandate",
@@ -477,7 +485,7 @@
               {
                 "factor": "tenure",
                 "impact": 0,
-                "detail": "known to this merchant for 22 days"
+                "detail": "known to this merchant for 40 days"
               },
               {
                 "factor": "mandate",
@@ -500,7 +508,7 @@
       }
     },
     {
-      "atMs": 22203,
+      "atMs": 21497,
       "snapshot": {
         "mode": "simulated",
         "note": "No PayPal credentials found, so calls are simulated. Add sandbox credentials to go live.",
@@ -511,11 +519,11 @@
         "replay": null,
         "mandate": {
           "claims": {
-            "id": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "principal": "filippo@example.com",
             "agentId": "agent-procurement-01",
-            "issuedAt": "2026-10-20T17:19:21.449Z",
-            "expiresAt": "2026-11-19T17:19:21.449Z",
+            "issuedAt": "2026-11-07T10:46:17.052Z",
+            "expiresAt": "2026-12-07T10:46:17.052Z",
             "budget": {
               "amount": 12000,
               "currency": "USD"
@@ -534,15 +542,19 @@
                 "currency": "USD"
               }
             },
-            "nonce": "2c13a08d-b932-42dd-bf69-68388de1df8b"
+            "nonce": "bc9af845-8c37-485c-835a-ed524a0218f6"
           },
-          "signature": "9da9a4740da27763552e4bb3946e75c44a555dfed18db0b510caae1c3787e695",
-          "algorithm": "HMAC-SHA256",
+          "signature": "n6uqUA8PHdiluC93iMf06fBsrn1eORIvhs9cxor1oXX5T7IqrbJiWodPndB+8TYDJwAMWYRb24oNEy5Z3zzgCw==",
+          "algorithm": "Ed25519",
           "state": {
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "revokedAt": null,
             "spendToDate": {
               "amount": 2400,
+              "currency": "USD"
+            },
+            "reservedToDate": {
+              "amount": 0,
               "currency": "USD"
             },
             "transactionCount": 1
@@ -554,13 +566,14 @@
         },
         "ledger": [
           {
-            "id": "81c25fe0-2695-489b-b884-d0b4c7f51650",
-            "at": "2026-10-20T17:19:43.655Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "d944bf59-cab4-4aae-acc0-873738577fe2",
+            "at": "2026-11-07T10:46:38.568Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "pay_order",
             "proposal": {
               "action": "pay_order",
+              "orderId": "ORD00000000000001",
               "amount": 2400,
               "currency": "USD",
               "merchant": "acme-supplies",
@@ -574,12 +587,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -644,12 +657,13 @@
               ]
             },
             "externalRef": "ORD00000000000001",
-            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000002\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000002\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}",
+            "committed": true
           },
           {
-            "id": "011021b9-7121-436a-bc94-c5dfceef3c85",
-            "at": "2026-10-20T17:19:36.521Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "454dc2ff-9259-4e23-afaa-557492d61559",
+            "at": "2026-11-07T10:46:28.592Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "create_order",
             "proposal": {
@@ -666,12 +680,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -771,7 +785,7 @@
               {
                 "factor": "tenure",
                 "impact": 10,
-                "detail": "known to this merchant for over a year (963 days)"
+                "detail": "known to this merchant for over a year (981 days)"
               },
               {
                 "factor": "mandate",
@@ -813,7 +827,7 @@
               {
                 "factor": "tenure",
                 "impact": 0,
-                "detail": "known to this merchant for 22 days"
+                "detail": "known to this merchant for 40 days"
               },
               {
                 "factor": "mandate",
@@ -836,7 +850,7 @@
       }
     },
     {
-      "atMs": 94036,
+      "atMs": 39326,
       "snapshot": {
         "mode": "simulated",
         "note": "No PayPal credentials found, so calls are simulated. Add sandbox credentials to go live.",
@@ -847,11 +861,11 @@
         "replay": null,
         "mandate": {
           "claims": {
-            "id": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "principal": "filippo@example.com",
             "agentId": "agent-procurement-01",
-            "issuedAt": "2026-10-20T17:19:21.449Z",
-            "expiresAt": "2026-11-19T17:19:21.449Z",
+            "issuedAt": "2026-11-07T10:46:17.052Z",
+            "expiresAt": "2026-12-07T10:46:17.052Z",
             "budget": {
               "amount": 12000,
               "currency": "USD"
@@ -870,15 +884,19 @@
                 "currency": "USD"
               }
             },
-            "nonce": "2c13a08d-b932-42dd-bf69-68388de1df8b"
+            "nonce": "bc9af845-8c37-485c-835a-ed524a0218f6"
           },
-          "signature": "9da9a4740da27763552e4bb3946e75c44a555dfed18db0b510caae1c3787e695",
-          "algorithm": "HMAC-SHA256",
+          "signature": "n6uqUA8PHdiluC93iMf06fBsrn1eORIvhs9cxor1oXX5T7IqrbJiWodPndB+8TYDJwAMWYRb24oNEy5Z3zzgCw==",
+          "algorithm": "Ed25519",
           "state": {
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "revokedAt": null,
             "spendToDate": {
               "amount": 2400,
+              "currency": "USD"
+            },
+            "reservedToDate": {
+              "amount": 0,
               "currency": "USD"
             },
             "transactionCount": 1
@@ -890,13 +908,14 @@
         },
         "ledger": [
           {
-            "id": "5ac2208d-3f8d-4403-99da-630c3fb87ede",
-            "at": "2026-10-20T17:20:55.487Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "51f26bc3-aa78-4c50-bdeb-ccea4095c609",
+            "at": "2026-11-07T10:46:56.397Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "pay_order",
             "proposal": {
               "action": "pay_order",
+              "orderId": "ORD00000000009002",
               "amount": 4500,
               "currency": "USD",
               "merchant": "acme-supplies",
@@ -910,12 +929,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -977,13 +996,14 @@
             }
           },
           {
-            "id": "81c25fe0-2695-489b-b884-d0b4c7f51650",
-            "at": "2026-10-20T17:19:43.655Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "d944bf59-cab4-4aae-acc0-873738577fe2",
+            "at": "2026-11-07T10:46:38.568Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "pay_order",
             "proposal": {
               "action": "pay_order",
+              "orderId": "ORD00000000000001",
               "amount": 2400,
               "currency": "USD",
               "merchant": "acme-supplies",
@@ -997,12 +1017,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -1067,12 +1087,13 @@
               ]
             },
             "externalRef": "ORD00000000000001",
-            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000002\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000002\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}",
+            "committed": true
           },
           {
-            "id": "011021b9-7121-436a-bc94-c5dfceef3c85",
-            "at": "2026-10-20T17:19:36.521Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "454dc2ff-9259-4e23-afaa-557492d61559",
+            "at": "2026-11-07T10:46:28.592Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "create_order",
             "proposal": {
@@ -1089,12 +1110,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -1173,13 +1194,14 @@
         },
         "approvals": [
           {
-            "id": "94d29b92-a56c-434f-8d87-e8d76663e491",
-            "at": "2026-10-20T17:20:55.487Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "b2219d95-bbe5-406b-acf9-99a19e83acbc",
+            "at": "2026-11-07T10:46:56.397Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "pay_order",
             "proposal": {
               "action": "pay_order",
+              "orderId": "ORD00000000009002",
               "amount": 4500,
               "currency": "USD",
               "merchant": "acme-supplies",
@@ -1193,12 +1215,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -1261,7 +1283,8 @@
             "status": "pending",
             "args": {
               "id": "ORD00000000009002"
-            }
+            },
+            "orderId": "ORD00000000009002"
           }
         ],
         "trust": [
@@ -1288,7 +1311,7 @@
               {
                 "factor": "tenure",
                 "impact": 10,
-                "detail": "known to this merchant for over a year (963 days)"
+                "detail": "known to this merchant for over a year (981 days)"
               },
               {
                 "factor": "mandate",
@@ -1330,7 +1353,7 @@
               {
                 "factor": "tenure",
                 "impact": 0,
-                "detail": "known to this merchant for 22 days"
+                "detail": "known to this merchant for 40 days"
               },
               {
                 "factor": "mandate",
@@ -1353,7 +1376,7 @@
       }
     },
     {
-      "atMs": 101760,
+      "atMs": 43538,
       "snapshot": {
         "mode": "simulated",
         "note": "No PayPal credentials found, so calls are simulated. Add sandbox credentials to go live.",
@@ -1364,11 +1387,11 @@
         "replay": null,
         "mandate": {
           "claims": {
-            "id": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "principal": "filippo@example.com",
             "agentId": "agent-procurement-01",
-            "issuedAt": "2026-10-20T17:19:21.449Z",
-            "expiresAt": "2026-11-19T17:19:21.449Z",
+            "issuedAt": "2026-11-07T10:46:17.052Z",
+            "expiresAt": "2026-12-07T10:46:17.052Z",
             "budget": {
               "amount": 12000,
               "currency": "USD"
@@ -1387,15 +1410,19 @@
                 "currency": "USD"
               }
             },
-            "nonce": "2c13a08d-b932-42dd-bf69-68388de1df8b"
+            "nonce": "bc9af845-8c37-485c-835a-ed524a0218f6"
           },
-          "signature": "9da9a4740da27763552e4bb3946e75c44a555dfed18db0b510caae1c3787e695",
-          "algorithm": "HMAC-SHA256",
+          "signature": "n6uqUA8PHdiluC93iMf06fBsrn1eORIvhs9cxor1oXX5T7IqrbJiWodPndB+8TYDJwAMWYRb24oNEy5Z3zzgCw==",
+          "algorithm": "Ed25519",
           "state": {
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "revokedAt": null,
             "spendToDate": {
               "amount": 2400,
+              "currency": "USD"
+            },
+            "reservedToDate": {
+              "amount": 0,
               "currency": "USD"
             },
             "transactionCount": 1
@@ -1407,13 +1434,14 @@
         },
         "ledger": [
           {
-            "id": "65b22ada-38ff-4634-8459-48137128ce99",
-            "at": "2026-10-20T17:21:03.212Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "64dc8eff-b247-49bf-bc3d-8ac7a559f76e",
+            "at": "2026-11-07T10:47:00.609Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "pay_order",
             "proposal": {
               "action": "pay_order",
+              "orderId": "ORD00000000009001",
               "amount": 9900,
               "currency": "USD",
               "merchant": "sketchy-deals",
@@ -1427,12 +1455,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -1453,13 +1481,14 @@
             }
           },
           {
-            "id": "5ac2208d-3f8d-4403-99da-630c3fb87ede",
-            "at": "2026-10-20T17:20:55.487Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "51f26bc3-aa78-4c50-bdeb-ccea4095c609",
+            "at": "2026-11-07T10:46:56.397Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "pay_order",
             "proposal": {
               "action": "pay_order",
+              "orderId": "ORD00000000009002",
               "amount": 4500,
               "currency": "USD",
               "merchant": "acme-supplies",
@@ -1473,12 +1502,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -1540,13 +1569,14 @@
             }
           },
           {
-            "id": "81c25fe0-2695-489b-b884-d0b4c7f51650",
-            "at": "2026-10-20T17:19:43.655Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "d944bf59-cab4-4aae-acc0-873738577fe2",
+            "at": "2026-11-07T10:46:38.568Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "pay_order",
             "proposal": {
               "action": "pay_order",
+              "orderId": "ORD00000000000001",
               "amount": 2400,
               "currency": "USD",
               "merchant": "acme-supplies",
@@ -1560,12 +1590,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -1630,12 +1660,13 @@
               ]
             },
             "externalRef": "ORD00000000000001",
-            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000002\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000002\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}",
+            "committed": true
           },
           {
-            "id": "011021b9-7121-436a-bc94-c5dfceef3c85",
-            "at": "2026-10-20T17:19:36.521Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "454dc2ff-9259-4e23-afaa-557492d61559",
+            "at": "2026-11-07T10:46:28.592Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "create_order",
             "proposal": {
@@ -1652,12 +1683,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -1737,13 +1768,14 @@
         },
         "approvals": [
           {
-            "id": "94d29b92-a56c-434f-8d87-e8d76663e491",
-            "at": "2026-10-20T17:20:55.487Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "b2219d95-bbe5-406b-acf9-99a19e83acbc",
+            "at": "2026-11-07T10:46:56.397Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "pay_order",
             "proposal": {
               "action": "pay_order",
+              "orderId": "ORD00000000009002",
               "amount": 4500,
               "currency": "USD",
               "merchant": "acme-supplies",
@@ -1757,12 +1789,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -1825,7 +1857,8 @@
             "status": "pending",
             "args": {
               "id": "ORD00000000009002"
-            }
+            },
+            "orderId": "ORD00000000009002"
           }
         ],
         "trust": [
@@ -1852,7 +1885,7 @@
               {
                 "factor": "tenure",
                 "impact": 10,
-                "detail": "known to this merchant for over a year (963 days)"
+                "detail": "known to this merchant for over a year (981 days)"
               },
               {
                 "factor": "mandate",
@@ -1894,7 +1927,7 @@
               {
                 "factor": "tenure",
                 "impact": 0,
-                "detail": "known to this merchant for 22 days"
+                "detail": "known to this merchant for 40 days"
               },
               {
                 "factor": "mandate",
@@ -1917,7 +1950,7 @@
       }
     },
     {
-      "atMs": 110741,
+      "atMs": 50323,
       "snapshot": {
         "mode": "simulated",
         "note": "No PayPal credentials found, so calls are simulated. Add sandbox credentials to go live.",
@@ -1928,11 +1961,11 @@
         "replay": null,
         "mandate": {
           "claims": {
-            "id": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "principal": "filippo@example.com",
             "agentId": "agent-procurement-01",
-            "issuedAt": "2026-10-20T17:19:21.449Z",
-            "expiresAt": "2026-11-19T17:19:21.449Z",
+            "issuedAt": "2026-11-07T10:46:17.052Z",
+            "expiresAt": "2026-12-07T10:46:17.052Z",
             "budget": {
               "amount": 12000,
               "currency": "USD"
@@ -1951,15 +1984,19 @@
                 "currency": "USD"
               }
             },
-            "nonce": "2c13a08d-b932-42dd-bf69-68388de1df8b"
+            "nonce": "bc9af845-8c37-485c-835a-ed524a0218f6"
           },
-          "signature": "9da9a4740da27763552e4bb3946e75c44a555dfed18db0b510caae1c3787e695",
-          "algorithm": "HMAC-SHA256",
+          "signature": "n6uqUA8PHdiluC93iMf06fBsrn1eORIvhs9cxor1oXX5T7IqrbJiWodPndB+8TYDJwAMWYRb24oNEy5Z3zzgCw==",
+          "algorithm": "Ed25519",
           "state": {
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "revokedAt": null,
             "spendToDate": {
               "amount": 6900,
+              "currency": "USD"
+            },
+            "reservedToDate": {
+              "amount": 0,
               "currency": "USD"
             },
             "transactionCount": 2
@@ -1971,13 +2008,14 @@
         },
         "ledger": [
           {
-            "id": "f987a995-3f6f-4344-aba7-cec612cfa186",
-            "at": "2026-10-20T17:21:12.193Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "ee754699-64ba-4a11-8b3f-aaea1b334c01",
+            "at": "2026-11-07T10:47:07.394Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "pay_order",
             "proposal": {
               "action": "pay_order",
+              "orderId": "ORD00000000009002",
               "amount": 4500,
               "currency": "USD",
               "merchant": "acme-supplies",
@@ -1986,17 +2024,17 @@
             "decision": {
               "allowed": true,
               "code": "ALLOWED",
-              "reason": "approved by a human (approval 94d29b92)",
+              "reason": "approved by a human (approval b2219d95)",
               "checks": [
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -2056,22 +2094,24 @@
                 {
                   "rule": "human-approval",
                   "passed": true,
-                  "detail": "approval 94d29b92-a56c-434f-8d87-e8d76663e491"
+                  "detail": "approval b2219d95-bbe5-406b-acf9-99a19e83acbc"
                 }
               ],
               "requiresApproval": false
             },
             "externalRef": "ORD00000000009002",
-            "result": "{\"id\":\"ORD00000000009002\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000003\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"45.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+            "result": "{\"id\":\"ORD00000000009002\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000003\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"45.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}",
+            "committed": true
           },
           {
-            "id": "65b22ada-38ff-4634-8459-48137128ce99",
-            "at": "2026-10-20T17:21:03.212Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "64dc8eff-b247-49bf-bc3d-8ac7a559f76e",
+            "at": "2026-11-07T10:47:00.609Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "pay_order",
             "proposal": {
               "action": "pay_order",
+              "orderId": "ORD00000000009001",
               "amount": 9900,
               "currency": "USD",
               "merchant": "sketchy-deals",
@@ -2085,12 +2125,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -2111,13 +2151,14 @@
             }
           },
           {
-            "id": "5ac2208d-3f8d-4403-99da-630c3fb87ede",
-            "at": "2026-10-20T17:20:55.487Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "51f26bc3-aa78-4c50-bdeb-ccea4095c609",
+            "at": "2026-11-07T10:46:56.397Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "pay_order",
             "proposal": {
               "action": "pay_order",
+              "orderId": "ORD00000000009002",
               "amount": 4500,
               "currency": "USD",
               "merchant": "acme-supplies",
@@ -2131,12 +2172,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -2198,13 +2239,14 @@
             }
           },
           {
-            "id": "81c25fe0-2695-489b-b884-d0b4c7f51650",
-            "at": "2026-10-20T17:19:43.655Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "d944bf59-cab4-4aae-acc0-873738577fe2",
+            "at": "2026-11-07T10:46:38.568Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "pay_order",
             "proposal": {
               "action": "pay_order",
+              "orderId": "ORD00000000000001",
               "amount": 2400,
               "currency": "USD",
               "merchant": "acme-supplies",
@@ -2218,12 +2260,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -2288,12 +2330,13 @@
               ]
             },
             "externalRef": "ORD00000000000001",
-            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000002\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000002\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}",
+            "committed": true
           },
           {
-            "id": "011021b9-7121-436a-bc94-c5dfceef3c85",
-            "at": "2026-10-20T17:19:36.521Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "454dc2ff-9259-4e23-afaa-557492d61559",
+            "at": "2026-11-07T10:46:28.592Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "create_order",
             "proposal": {
@@ -2310,12 +2353,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -2418,7 +2461,7 @@
               {
                 "factor": "tenure",
                 "impact": 10,
-                "detail": "known to this merchant for over a year (963 days)"
+                "detail": "known to this merchant for over a year (981 days)"
               },
               {
                 "factor": "mandate",
@@ -2460,7 +2503,7 @@
               {
                 "factor": "tenure",
                 "impact": 0,
-                "detail": "known to this merchant for 22 days"
+                "detail": "known to this merchant for 40 days"
               },
               {
                 "factor": "mandate",
@@ -2483,7 +2526,7 @@
       }
     },
     {
-      "atMs": 110741,
+      "atMs": 50323,
       "snapshot": {
         "mode": "simulated",
         "note": "No PayPal credentials found, so calls are simulated. Add sandbox credentials to go live.",
@@ -2494,11 +2537,11 @@
         "replay": null,
         "mandate": {
           "claims": {
-            "id": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "principal": "filippo@example.com",
             "agentId": "agent-procurement-01",
-            "issuedAt": "2026-10-20T17:19:21.449Z",
-            "expiresAt": "2026-11-19T17:19:21.449Z",
+            "issuedAt": "2026-11-07T10:46:17.052Z",
+            "expiresAt": "2026-12-07T10:46:17.052Z",
             "budget": {
               "amount": 12000,
               "currency": "USD"
@@ -2517,15 +2560,19 @@
                 "currency": "USD"
               }
             },
-            "nonce": "2c13a08d-b932-42dd-bf69-68388de1df8b"
+            "nonce": "bc9af845-8c37-485c-835a-ed524a0218f6"
           },
-          "signature": "9da9a4740da27763552e4bb3946e75c44a555dfed18db0b510caae1c3787e695",
-          "algorithm": "HMAC-SHA256",
+          "signature": "n6uqUA8PHdiluC93iMf06fBsrn1eORIvhs9cxor1oXX5T7IqrbJiWodPndB+8TYDJwAMWYRb24oNEy5Z3zzgCw==",
+          "algorithm": "Ed25519",
           "state": {
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "revokedAt": null,
             "spendToDate": {
               "amount": 6900,
+              "currency": "USD"
+            },
+            "reservedToDate": {
+              "amount": 0,
               "currency": "USD"
             },
             "transactionCount": 2
@@ -2537,13 +2584,14 @@
         },
         "ledger": [
           {
-            "id": "f987a995-3f6f-4344-aba7-cec612cfa186",
-            "at": "2026-10-20T17:21:12.193Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "ee754699-64ba-4a11-8b3f-aaea1b334c01",
+            "at": "2026-11-07T10:47:07.394Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "pay_order",
             "proposal": {
               "action": "pay_order",
+              "orderId": "ORD00000000009002",
               "amount": 4500,
               "currency": "USD",
               "merchant": "acme-supplies",
@@ -2552,17 +2600,17 @@
             "decision": {
               "allowed": true,
               "code": "ALLOWED",
-              "reason": "approved by a human (approval 94d29b92)",
+              "reason": "approved by a human (approval b2219d95)",
               "checks": [
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -2622,22 +2670,24 @@
                 {
                   "rule": "human-approval",
                   "passed": true,
-                  "detail": "approval 94d29b92-a56c-434f-8d87-e8d76663e491"
+                  "detail": "approval b2219d95-bbe5-406b-acf9-99a19e83acbc"
                 }
               ],
               "requiresApproval": false
             },
             "externalRef": "ORD00000000009002",
-            "result": "{\"id\":\"ORD00000000009002\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000003\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"45.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+            "result": "{\"id\":\"ORD00000000009002\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000003\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"45.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}",
+            "committed": true
           },
           {
-            "id": "65b22ada-38ff-4634-8459-48137128ce99",
-            "at": "2026-10-20T17:21:03.212Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "64dc8eff-b247-49bf-bc3d-8ac7a559f76e",
+            "at": "2026-11-07T10:47:00.609Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "pay_order",
             "proposal": {
               "action": "pay_order",
+              "orderId": "ORD00000000009001",
               "amount": 9900,
               "currency": "USD",
               "merchant": "sketchy-deals",
@@ -2651,12 +2701,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -2677,13 +2727,14 @@
             }
           },
           {
-            "id": "5ac2208d-3f8d-4403-99da-630c3fb87ede",
-            "at": "2026-10-20T17:20:55.487Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "51f26bc3-aa78-4c50-bdeb-ccea4095c609",
+            "at": "2026-11-07T10:46:56.397Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "pay_order",
             "proposal": {
               "action": "pay_order",
+              "orderId": "ORD00000000009002",
               "amount": 4500,
               "currency": "USD",
               "merchant": "acme-supplies",
@@ -2697,12 +2748,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -2764,13 +2815,14 @@
             }
           },
           {
-            "id": "81c25fe0-2695-489b-b884-d0b4c7f51650",
-            "at": "2026-10-20T17:19:43.655Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "d944bf59-cab4-4aae-acc0-873738577fe2",
+            "at": "2026-11-07T10:46:38.568Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "pay_order",
             "proposal": {
               "action": "pay_order",
+              "orderId": "ORD00000000000001",
               "amount": 2400,
               "currency": "USD",
               "merchant": "acme-supplies",
@@ -2784,12 +2836,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -2854,12 +2906,13 @@
               ]
             },
             "externalRef": "ORD00000000000001",
-            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000002\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}"
+            "result": "{\"id\":\"ORD00000000000001\",\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"CAP00000000000002\",\"status\":\"COMPLETED\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"24.00\"}}]},\"payee\":{\"merchant_id\":\"acme-supplies\"}}]}",
+            "committed": true
           },
           {
-            "id": "011021b9-7121-436a-bc94-c5dfceef3c85",
-            "at": "2026-10-20T17:19:36.521Z",
-            "mandateId": "3dce9a2c-230a-438f-822f-9f9dcb9325ff",
+            "id": "454dc2ff-9259-4e23-afaa-557492d61559",
+            "at": "2026-11-07T10:46:28.592Z",
+            "mandateId": "3b01a7c0-5fb0-480b-87c3-3c4a80416311",
             "agentId": "agent-procurement-01",
             "action": "create_order",
             "proposal": {
@@ -2876,12 +2929,12 @@
                 {
                   "rule": "signature",
                   "passed": true,
-                  "detail": "HMAC-SHA256 over canonical claims matches"
+                  "detail": "Ed25519 signature over canonical claims matches"
                 },
                 {
                   "rule": "validity",
                   "passed": true,
-                  "detail": "mandate is well formed and expires 2026-11-19T17:19:21.449Z"
+                  "detail": "mandate is well formed and expires 2026-12-07T10:46:17.052Z"
                 },
                 {
                   "rule": "revocation",
@@ -2984,7 +3037,7 @@
               {
                 "factor": "tenure",
                 "impact": 10,
-                "detail": "known to this merchant for over a year (963 days)"
+                "detail": "known to this merchant for over a year (981 days)"
               },
               {
                 "factor": "mandate",
@@ -3026,7 +3079,7 @@
               {
                 "factor": "tenure",
                 "impact": 0,
-                "detail": "known to this merchant for 22 days"
+                "detail": "known to this merchant for 40 days"
               },
               {
                 "factor": "mandate",
@@ -3048,5 +3101,6 @@
         ]
       }
     }
-  ]
+  ],
+  "publicKey": "MCowBQYDK2VwAyEAa3bIMccCcv4VtcSn6bfUEtGUzRa74shNkRfvjNCbAXY="
 }

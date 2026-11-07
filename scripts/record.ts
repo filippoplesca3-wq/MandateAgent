@@ -128,6 +128,9 @@ const recording = {
   durationMs: Date.now() - started,
   steps: result.steps,
   frames,
+  // The hosted server boots with its own key, so publish the key this
+  // recording was signed with. Verification then works on the deployed demo.
+  publicKey: store.publicKeyBase64,
 }
 
 mkdirSync(dirname(OUT), { recursive: true })

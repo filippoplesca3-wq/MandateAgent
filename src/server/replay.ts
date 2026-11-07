@@ -12,6 +12,7 @@
 
 import { readFileSync } from "node:fs"
 import type { AgentStep } from "../agent/agent.js"
+import type { MandateClaims, MandateEnvelope } from "../core/types.js"
 import type { ReplayInfo, ServerSnapshot } from "./snapshot.js"
 
 export interface RecordedFrame {
@@ -31,6 +32,12 @@ export interface RecordedRun {
   durationMs: number
   steps: AgentStep[]
   frames: RecordedFrame[]
+  /**
+   * SPKI base64 public key of the signing key used at record time. The hosted
+   * server boots with its own ephemeral key, so this is what lets a visitor
+   * verify the recorded mandate against the key the demo actually publishes.
+   */
+  publicKey?: string
 }
 
 export function loadReplayFile(path: string): RecordedRun {
@@ -70,6 +77,9 @@ export function parseReplay(raw: unknown, source = "recording"): RecordedRun {
     durationMs: typeof value.durationMs === "number" ? value.durationMs : 0,
     steps: Array.isArray(value.steps) ? (value.steps as AgentStep[]) : [],
     frames: value.frames,
+    ...(typeof value.publicKey === "string" && value.publicKey.length > 0
+      ? { publicKey: value.publicKey }
+      : {}),
   }
 }
 
@@ -99,6 +109,31 @@ export class ReplayPlayer {
       task: this.run.task,
       paypalMode: this.run.paypalMode,
     }
+  }
+
+  /** SPKI base64 key the recording was signed with, when the recording has one. */
+  get publicKey(): string | null {
+    return this.run.publicKey ?? null
+  }
+
+  /**
+   * The signed envelope shown in the recording, plus the revocation state at
+   * the end of the run. The claims never change between frames; only runtime
+   * state (spend, revocation) does.
+   */
+  get recordedMandate(): (MandateEnvelope & { revokedAt: string | null }) | null {
+    for (let i = this.run.frames.length - 1; i >= 0; i -= 1) {
+      const mandate = this.run.frames[i]?.snapshot.mandate
+      if (!mandate) continue
+      const claims: MandateClaims = mandate.claims
+      return {
+        claims,
+        signature: mandate.signature,
+        algorithm: mandate.algorithm as MandateEnvelope["algorithm"],
+        revokedAt: mandate.state.revokedAt,
+      }
+    }
+    return null
   }
 
   get frameIndex(): number {

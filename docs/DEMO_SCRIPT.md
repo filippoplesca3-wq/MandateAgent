@@ -16,7 +16,7 @@ clearly labelled **replay**.
 - [ ] The mandate is fresh: budget **$120**, max per payment **$50**, merchant
       **acme-supplies**, approval above **$40**, expires in **24h**.
 - [ ] Ledger is empty (restart the server if needed).
-- [ ] `docs/screenshot.svg` has been replaced with a real capture.
+- [ ] Real captures from `docs/screenshots/` are used in the README and Devpost.
 - [ ] Do a dry run once, then restart to reset state before the real take.
 
 ## Beat-by-beat

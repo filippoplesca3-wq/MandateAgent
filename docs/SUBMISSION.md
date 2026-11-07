@@ -131,7 +131,7 @@ model.
 ## Accomplishments that we're proud of
 
 - A deterministic enforcement layer that a manipulated model cannot widen.
-- 188 tests across 17 files, covering signature forgery, tampered claims, revoked
+- 193 tests across 18 files, covering signature forgery, tampered claims, revoked
   and expired mandates, concurrent approvals, budget races, ledger accounting,
   CORS, rate limits and request validation.
 - A real PayPal sandbox path: order creation, browser approval, capture, declines
@@ -174,10 +174,16 @@ MCP, Docker, Render.
 | **Source code** | https://github.com/filippooplesca3-wq/MandateAgent |
 | **License** | MIT |
 | **Live check** | `npm run check:live` (sandbox only; refuses live money) |
+| **Architecture** | https://github.com/filippooplesca3-wq/MandateAgent/blob/main/docs/ARCHITECTURE.md |
+| **Security model** | https://github.com/filippooplesca3-wq/MandateAgent/blob/main/docs/SECURITY.md |
 
 The hosted demo is a **read-only recording of a real Gemini run**, clearly
 labelled `replay` in the header. It makes no PayPal or Gemini calls and needs no
 secrets. It starts with a pre-seeded demo mandate.
+
+Screenshots for the Devpost gallery are in `docs/screenshots/`:
+`console.png` (the console after one run), `ledger.png` (the three outcomes) and
+`injection-denied.png` (the scripted attack refused).
 
 ## Judge testing instructions
 
@@ -192,14 +198,25 @@ secrets. It starts with a pre-seeded demo mandate.
    sketchy-deals (injection)** preset is a deterministic, scripted attack; on
    the hosted replay it is disabled because writes are refused. Run locally to
    trigger it and see the refusal appended to the ledger.
-4. Issue, revoke and approve are disabled on the hosted demo: a recording must
+4. Verify the mandate on screen without trusting the page. The hosted demo
+   publishes the recording's own public key (`source: "recording"`), and
+   `GET /api/mandates/<id>/verify` returns `ok: true` for the recorded id. Send
+   the same envelope back with a raised budget and it returns
+   `signatureValid: false`:
+
+   ```bash
+   curl https://agent-mandate.onrender.com/api/mandate/public-key
+   curl https://agent-mandate.onrender.com/api/mandates/<id>/verify
+   ```
+
+5. Issue, revoke and approve are disabled on the hosted demo: a recording must
    not be edited, so the API refuses those writes with `409`. To exercise them,
    run locally (`npm install`, copy `.env.example` to `.env`, set
    `ADMIN_TOKEN`, `npm run dev`).
-5. The live PayPal sandbox checkout is local-only because it needs sandbox
+6. The live PayPal sandbox checkout is local-only because it needs sandbox
    credentials. The video shows the sandbox credentials and the **LIVE** badge,
    then the full create → approve → capture flow.
-6. State is in memory and the free instance sleeps. A restart starts a fresh
+7. State is in memory and the free instance sleeps. A restart starts a fresh
    pre-seeded mandate; that is expected, not a failure.
 
 ## Team
@@ -211,8 +228,8 @@ tests and deployment.
 
 - [ ] Hosted demo URL replaced above and in `README.md`.
 - [ ] Public YouTube video, under 3:00, URL replaced above and in `README.md`.
-- [ ] `docs/screenshot.svg` replaced with a real console capture.
+- [ ] Screenshots from `docs/screenshots/` uploaded to the Devpost gallery.
 - [ ] Devpost fields filled from this file.
-- [ ] Repo is public and the license is visible.
+- [ ] Repo is public, the license is visible and the CI badge is green.
 - [ ] Sandbox credentials and the **LIVE** badge are visible in the video.
 - [ ] Submitted before **12 November 2026, 12:00 PM PT** (21:00 CET).

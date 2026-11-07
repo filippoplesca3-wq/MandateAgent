@@ -1,0 +1,23 @@
+name: Warm demo
+
+# Render's free tier sleeps after inactivity. Set the repository variable
+# DEMO_URL (for example https://agent-mandate.onrender.com) to keep the demo
+# awake while judging. Without the variable this workflow does nothing.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    if: vars.DEMO_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping the health endpoint
+        continue-on-error: true
+        run: |
+          curl -fsS --retry 3 --retry-delay 5 --max-time 90 \
+            "${{ vars.DEMO_URL }}/api/health"

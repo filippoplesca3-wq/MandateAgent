@@ -96,22 +96,36 @@ Railway injects `PORT`; the app already reads it.
 
 ## Docker (alternative)
 
-Any container host works with the same two commands. A minimal image:
+The repo includes a `Dockerfile` that mirrors `npm ci && npm run build` and runs
+as the unprivileged `node` user:
 
-```dockerfile
-FROM node:22-slim
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --include=dev
-COPY . .
-RUN npm run build
-ENV NODE_ENV=production
-ENV PORT=3001
-EXPOSE 3001
-CMD ["npm", "start"]
+```bash
+docker build -t agent-mandate .
+docker run --rm -p 3001:3001 \
+  -e REPLAY_FILE=replays/demo-run.json \
+  -e MANDATE_SIGNING_KEY="$(openssl rand -hex 32)" \
+  agent-mandate
 ```
 
-Set `REPLAY_FILE=replays/demo-run.json` at runtime for the credential-free demo.
+Open `http://localhost:3001`. For SQLite persistence add
+`-e STORE_BACKEND=sqlite -v agent-mandate-data:/app/data`.
+
+The image keeps dev dependencies because `npm start` runs TypeScript through
+`tsx`; it is a demo image, not a hardened production build.
+
+## Keep the free instance warm
+
+`.github/workflows/warm.yml` pings `/api/health` every 10 minutes, but only when
+the repository variable `DEMO_URL` is set:
+
+1. Open the repository on GitHub.
+2. **Settings → Secrets and variables → Actions → Variables → New variable**.
+3. Name it `DEMO_URL` and use the Render URL without a trailing slash, for
+   example `https://agent-mandate.onrender.com`.
+
+Render's free tier includes 750 instance hours per month; one always-on service
+uses about 730. Remove the variable or disable the workflow if you run other
+free services. Without it, warm the URL manually before judging.
 
 ## Troubleshooting
 

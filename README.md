@@ -2,6 +2,10 @@
 
 **Signed spending authority for AI agents on PayPal.**
 
+[![CI](https://github.com/filippooplesca3-wq/MandateAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/filippooplesca3-wq/MandateAgent/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Tests: 193](https://img.shields.io/badge/tests-193%20passing-brightgreen.svg)](#tests)
+
 Agent Mandate lets an AI agent buy things for a person without ever holding the
 wallet. The human signs a scoped, expiring, revocable **mandate** — total budget,
 per-payment ceiling, merchant allowlist and an approval threshold — and every
@@ -12,18 +16,35 @@ bounds. The model can be prompt-injected, confused or simply wrong; the mandate
 still holds. The hosted demo replays a real Gemini run, while the live path
 creates and captures real PayPal **sandbox** orders.
 
-![Agent Mandate console](docs/screenshot.svg)
+![Agent Mandate console after a recorded run](docs/screenshots/console.png)
 
-> **Screenshot placeholder.** `docs/screenshot.svg` is a placeholder. Replace it
-> with a real capture (or `docs/demo.gif`) of the console showing the mandate,
-> the run timeline, the decision trail and the ledger before submitting.
+*The console after one recorded Gemini run: $24 allowed, $45 escalated and
+approved by a human, $99 denied, and every decision in the ledger.*
 
 | | |
 | --- | --- |
-| **Live demo** | https://agent-mandate.onrender.com *(placeholder — replace after deploy)* |
+| **Live demo** | https://agent-mandate.onrender.com *(replace after deploy)* |
 | **Video (under 3 min)** | https://youtu.be/... *(placeholder — public YouTube link)* |
 | **Source** | https://github.com/filippooplesca3-wq/MandateAgent |
 | **License** | MIT |
+
+## Judge in 90 seconds
+
+1. **Open the hosted demo** and press **Play recording**. The header says
+   `replay`; the banner names the model and the capture date. No key, no API
+   calls.
+2. **Read the ledger.** One run produces all three outcomes: $24 allowed, $45
+   escalated and approved, $99 denied at `sketchy-deals`.
+3. **Try a policy check.** The **Test a payment** presets run a real dry-run
+   evaluation against the pre-seeded mandate.
+4. **Run the proof.** `npm ci && npm test` (193 tests) and `npm run check:live`
+   (real PayPal sandbox + Gemini).
+5. **Go deeper:** [architecture](docs/ARCHITECTURE.md),
+   [security model](docs/SECURITY.md), [Devpost copy](docs/SUBMISSION.md),
+   [demo script](docs/DEMO_SCRIPT.md).
+
+If the hosted instance is asleep, the first request can take 30–60 seconds. The
+[Render blueprint](render.yaml) deploys a fresh copy with no credentials.
 
 ## How PayPal is used
 
@@ -64,7 +85,7 @@ Vitest · MCP
 
 | Criterion | Where to look |
 | --- | --- |
-| **Technological implementation** | 188 tests across 17 files, including concurrent approvals, budget races, signature forgery, tampered claims, revoked and expired mandates, CORS, rate limits, request validation and ledger accounting. `npm test`, `npm run typecheck`, `npm run build`. |
+| **Technological implementation** | 193 tests across 18 files, including concurrent approvals, budget races, signature forgery, tampered claims, revoked and expired mandates, CORS, rate limits, request validation and ledger accounting. `npm test`, `npm run typecheck`, `npm run build`. |
 | **Use of PayPal** | Real Agent Toolkit tools, sandbox order creation and capture, JS SDK v6 checkout, sandbox decline path, signature-verified webhooks, public-key mandate verification. See "How PayPal is used" and "Live mode check". |
 | **Design** | One deterministic core, swappable clients. The guard resolves amounts instead of trusting the model; the ledger records refusals as evidence; the console shows the mandate, run timeline, decisions and ledger live. |
 | **Potential impact** | Gives buyers a safe way to delegate spending and gives merchants a verifiable signal that an agent is authorised. The same mandate artefact works for procurement, subscriptions and expense limits. |
@@ -269,7 +290,7 @@ REPLAY_FILE=replays/demo-run.json npm start
 ```
 
 `replays/demo-run.json` was captured with `npm run record`: one genuine Gemini
-run (`gemini-3.1-flash-lite`) driving the same agent, guard and store the server
+run (`gemini-3.5-flash`) driving the same agent, guard and store the server
 uses, with PayPal in simulated mode. Each frame is the state at that moment —
 tool calls, guard decisions, ledger rows, and the human approval that released
 the parked $45. Timestamps, ids and decisions are the real ones; the UI labels
@@ -286,6 +307,8 @@ A visitor who wants to drive a live agent can paste their own Gemini key into th
 run panel. It is used for that single request and never stored or logged.
 
 ## Deploy on Render (free)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/filippooplesca3-wq/MandateAgent)
 
 `render.yaml` is included:
 
@@ -317,8 +340,9 @@ pay_order      USD 45.00   APPROVAL    exceeds the USD 40.00 auto-approval thres
 pay_order      USD 99.00   DENIED      merchant "sketchy-deals" is not in the permitted set
 ```
 
-Click **Approve & pay** and the parked $45 payment executes, the budget drops,
-and the ledger shows why it was allowed:
+In local live mode, click **Approve & pay** and the parked $45 payment executes,
+the budget drops, and the ledger shows why it was allowed. The hosted replay
+already contains the recorded approval and disables the button:
 
 ```
 approval-threshold   passed: false   4500 exceeds the auto-approval threshold of 4000
@@ -326,6 +350,11 @@ human-approval       passed: true    approval 3f0e7095-…
 ```
 
 That check trail is the whole point. A refusal is evidence, not an error.
+
+![Audit ledger after one run](docs/screenshots/ledger.png)
+
+*One run, three outcomes. The ledger records the allowed $24, the escalated and
+approved $45, and the denied $99 — with the rule and the reason for each.*
 
 ### Prompt injection, blocked
 
@@ -340,6 +369,11 @@ This scenario is deterministic and does not call a live model — it is a
 reproducible test of the guard, not a claim that Gemini was tricked on camera.
 The scenario uses stubbed PayPal tools, so it cannot capture even if a mandate
 were widened to allow the merchant.
+
+![Scripted prompt injection denied](docs/screenshots/injection-denied.png)
+
+*The scripted attack is denied on the merchant allowlist. The refusal is the
+evidence, and it lands in the ledger.*
 
 ## How enforcement actually works
 
@@ -365,6 +399,9 @@ success, and releases it on failure. That closes the double-spend race: two
 concurrent `pay_order` calls that each fit the budget cannot both pass, because
 only one can hold the reservation. A concurrency test runs exactly that case
 and asserts one capture, one `BUDGET_EXCEEDED`, and a released reservation.
+
+The full threat model — 20 adversaries and the test that covers each one — is in
+[docs/SECURITY.md](docs/SECURITY.md).
 
 ## Verifiable mandates
 
@@ -392,6 +429,12 @@ curl http://localhost:3001/api/mandates/<id>/verify
 `revoked`, `revokedAt` and the claims. It uses only the public key and the
 stored state, so a merchant can check a mandate before accepting it. An unknown
 id is a `404`; a tampered or revoked mandate returns `ok: false` with the reason.
+
+On the **hosted replay**, both endpoints verify the recorded mandate against the
+key the recording was signed with. The recording embeds that public key, the
+endpoints return `source: "recording"`, and the same envelope is rejected once
+its claims are widened. The serving process still boots with an ephemeral key
+of its own, so the demo needs no signing secret.
 
 HMAC-SHA256 envelopes remain verifiable for backwards compatibility: the same
 `POST /api/verify-mandate` accepts them and compares the signature with
@@ -423,6 +466,9 @@ and it is fully testable without a model or a network. Layer 2 is disposable: th
 agent can be swapped for another provider, and a broken model degrades the demo
 without breaking the guarantee.
 
+A fuller component map, sequence diagram, policy order and budget invariant are
+in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ## Seller-side trust
 
 A merchant receiving an agent's money gets a score, not a leap of faith. The
@@ -445,8 +491,10 @@ about real agents.
 ## Tests
 
 ```bash
-npm test          # 188 tests, 17 files
+npm test          # 193 tests, 18 files
 npm run typecheck
+npm run build
+npm run verify    # test + build, the same check CI runs
 npm run e2e       # full agent run, prints the ledger
 ```
 
@@ -455,7 +503,8 @@ policy rule, budget reservation races, SQLite persistence round-trips, ledger
 immutability, approval binding and single-use semantics, guard behaviour on
 tool errors, MCP clients going through the same guard, webhook parsing, and a
 contract test that checks the simulator's returned ids against the toolkit's
-real zod schemas.
+real zod schemas. CI runs the same checks on every push
+(`.github/workflows/ci.yml`).
 
 ## Configuration
 
@@ -491,7 +540,7 @@ src/server/    Express API, SSE stream, replay player
 src/mcp/       the same guarded tools served over MCP stdio
 src/web/       React console, AG Grid ledger
 replays/       recorded run served by the hosted demo
-docs/          demo video script, Devpost copy, screenshot placeholder
+docs/          architecture, security model, demo script, Devpost copy, screenshots
 tests/         vitest suite
 scripts/e2e.ts end-to-end run printed to the terminal
 scripts/check-live.ts env check, live sandbox order, one Gemini run, ledger
@@ -499,6 +548,16 @@ scripts/live-check.ts one live sandbox order through the guard
 scripts/decline-check.ts forced decline, proving no budget moves
 scripts/record.ts one real run, captured as replay frames
 ```
+
+## Real vs simulated
+
+| Claim | Status | Evidence |
+| --- | --- | --- |
+| The hosted agent run | **Real Gemini run, recorded** with `gemini-3.5-flash`; playback re-runs nothing | `replays/demo-run.json`, replay banner |
+| PayPal order creation and capture | **Real sandbox calls** in live mode; `npm run check:live` proves the path | `scripts/check-live.ts`, ledger |
+| Prompt injection | **Simulated attack**: scripted description and scripted call, no live model | `/api/demo/injection`, `tests/app.test.ts` |
+| Seller trust scores | **Seeded fixtures** except `mandateActive`, which is computed from the store | `src/server/demo.ts` |
+| Hosted demo | **Read-only replay**; no PayPal or Gemini credentials | `DEPLOY.md` |
 
 ## Notes and limits
 
