@@ -39,3 +39,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Verify recording offline
+        run: npm run verify:recording

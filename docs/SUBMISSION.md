@@ -216,6 +216,11 @@ Screenshots for the Devpost gallery are in `docs/screenshots/`:
    the published key, both verification paths, tamper rejection and the read-only
    write refusal, and exits non-zero on any failure.
 
+   For a check that does not trust the server at all, run
+   `npm run verify:recording`. It verifies the Ed25519 signature in
+   `replays/demo-run.json` against the key embedded in the file and proves a
+   one-cent-wider copy fails.
+
 5. Issue, revoke and approve are disabled on the hosted demo: a recording must
    not be edited, so the API refuses those writes with `409`. To exercise them,
    run locally (`npm install`, copy `.env.example` to `.env`, set

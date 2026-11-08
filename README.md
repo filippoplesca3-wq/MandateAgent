@@ -42,6 +42,7 @@ approved by a human, $99 denied, and every decision in the ledger.*
    shows `SIGNATURE VALID · Ed25519 · recorded key`: the mandate on screen
    checks out against the key the recording was signed with.
 5. **Run the proof.** `npm ci && npm test` (194 tests),
+   `npm run verify:recording` (offline Ed25519 check, no server),
    `npm run check:demo -- <url>` (audits the demo's own claims) and
    `npm run check:live` (real PayPal sandbox + Gemini).
 6. **Go deeper:** [architecture](docs/ARCHITECTURE.md),
@@ -472,6 +473,17 @@ npm run check:demo -- https://agent-mandate.onrender.com
 It checks health, the published Ed25519 key, stored and posted verification,
 tamper rejection and read-only writes, then exits non-zero if any claim fails.
 
+To verify the recording itself without trusting the server at all:
+
+```bash
+npm run verify:recording
+```
+
+It reads `replays/demo-run.json`, rebuilds the canonical claims, checks the
+Ed25519 signature against the key embedded in the file, and confirms that a
+one-cent-wider copy fails. No server, no API call, no secret. CI runs it on
+every push.
+
 HMAC-SHA256 envelopes remain verifiable for backwards compatibility: the same
 `POST /api/verify-mandate` accepts them and compares the signature with
 `crypto.timingSafeEqual`. Unknown algorithms are rejected. New mandates are
@@ -530,7 +542,8 @@ about real agents.
 npm test          # 194 tests, 18 files
 npm run typecheck
 npm run build
-npm run verify    # test + build, the same check CI runs
+npm run verify    # test + build
+npm run verify:recording  # offline Ed25519 proof, no server
 npm run e2e       # full agent run, prints the ledger
 ```
 
@@ -539,8 +552,8 @@ policy rule, budget reservation races, SQLite persistence round-trips, ledger
 immutability, approval binding and single-use semantics, guard behaviour on
 tool errors, MCP clients going through the same guard, webhook parsing, and a
 contract test that checks the simulator's returned ids against the toolkit's
-real zod schemas. CI runs the same checks on every push
-(`.github/workflows/ci.yml`).
+real zod schemas. CI runs the same checks plus the offline recording proof on
+every push (`.github/workflows/ci.yml`).
 
 ## Configuration
 

@@ -169,6 +169,8 @@ recording. `npm run demo` builds the console and serves this recording with no
 environment variables at all; `npm run check:demo -- <url>` audits a running
 instance, including the read-only refusal, which is answered before
 authentication so it is `409` even when no admin token exists.
+`npm run verify:recording` checks the Ed25519 signature offline against the key
+embedded in the file and rejects a widened copy; CI runs it on every push.
 
 The recording also embeds the SPKI public key it was signed with. A hosted
 server boots with its own ephemeral key, so `/api/mandate/public-key`,

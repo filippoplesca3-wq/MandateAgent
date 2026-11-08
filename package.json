@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "verify": "npm test && npm run build",
+    "verify:recording": "tsx scripts/verify-recording.ts",
     "demo": "npm run build && tsx scripts/demo.ts",
     "check:demo": "tsx scripts/check-demo.ts",
     "e2e": "tsx scripts/e2e.ts",
