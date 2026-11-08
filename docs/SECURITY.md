@@ -36,6 +36,7 @@ them, and where the evidence lives.
 | 18 | A toolkit upgrade silently adds a money-moving tool | All 47 tools are classified; unknown tools fail closed; a matrix test covers every name | `tests/policy.test.ts` — "covers every tool with exactly one class"; `tests/tools-matrix.test.ts` |
 | 19 | A failed capture still consumes budget | The reservation is released on exception or error result; only a successful call confirms it | `tests/guard.test.ts` — "does not commit budget twice when PayPal rejects a capture"; `tests/reservation.test.ts` — release |
 | 20 | The ledger disagrees with the spend counter | The invariant `spendToDate == sum(committed ledger entries)` is asserted after every outcome | `tests/guard.test.ts` — budget accounting |
+| 21 | A hostile page frames the console, sniffs response types or reads the referrer | `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` on every response; `x-powered-by` removed | `tests/http-hardening.test.ts` — hardening headers |
 
 ## What is not protected
 
