@@ -113,6 +113,21 @@ with a stolen API key.
 Agent Mandate fixes both sides with one artefact: a **mandate** — a signed
 statement of who delegated what to whom, for how much, to whom, until when.
 
+## Why not a card limit or an OAuth scope?
+
+Those controls are useful, but none of them is a mandate:
+
+| Control | What it cannot express |
+| --- | --- |
+| Virtual card / card limit | Which agent, which merchant, which purpose, and when the authority ends. A card number is a bearer token. |
+| OAuth scope | API permissions, not money. No per-payment ceiling, cumulative budget or human-approval threshold. |
+| Prompt instruction | A suggestion. An injected instruction is still an instruction. |
+| Platform allowlist | Tied to one marketplace; the merchant cannot verify it independently. |
+
+A mandate is scoped like a card limit, revocable like a session, portable like a
+credential, and verifiable by the merchant with only a public key. The agent
+never holds the wallet, and the merchant never has to trust the agent's prompt.
+
 ## What it does
 
 The human issues a mandate:
