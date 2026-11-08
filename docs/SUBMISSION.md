@@ -137,6 +137,8 @@ model.
 - A real PayPal sandbox path: order creation, browser approval, capture, declines
   and signature-verified webhooks.
 - A hosted demo that needs no credentials and still shows the real run.
+- The recorded mandate verifies offline against the key embedded in the file, and
+  a one-cent-wider copy fails; CI runs that proof on every push.
 - One artefact — the mandate — that serves buyers, agents and merchants.
 
 ## What we learned
@@ -173,7 +175,9 @@ MCP, Docker, Render.
 | **Video (under 3 minutes)** | `https://youtu.be/...` — **replace after upload** |
 | **Source code** | https://github.com/filippoplesca3-wq/MandateAgent |
 | **License** | MIT |
+| **Run it locally** | `npm ci && npm run demo` → http://localhost:3001 (no credentials) |
 | **Live check** | `npm run check:live` (sandbox only; refuses live money) |
+| **Offline proof** | `npm run verify:recording` (Ed25519, no server) |
 | **Architecture** | https://github.com/filippoplesca3-wq/MandateAgent/blob/main/docs/ARCHITECTURE.md |
 | **Security model** | https://github.com/filippoplesca3-wq/MandateAgent/blob/main/docs/SECURITY.md |
 

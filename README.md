@@ -3,8 +3,10 @@
 **Signed spending authority for AI agents on PayPal.**
 
 [![CI](https://github.com/filippoplesca3-wq/MandateAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/filippoplesca3-wq/MandateAgent/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/filippoplesca3-wq/MandateAgent?label=release)](https://github.com/filippoplesca3-wq/MandateAgent/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Tests: 194](https://img.shields.io/badge/tests-194%20passing-brightgreen.svg)](#tests)
+![PayPal AI Hackathon 2026](https://img.shields.io/badge/PayPal%20AI%20Hackathon-2026-003087)
 
 Agent Mandate lets an AI agent buy things for a person without ever holding the
 wallet. The human signs a scoped, expiring, revocable **mandate** — total budget,
