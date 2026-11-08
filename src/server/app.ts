@@ -180,6 +180,7 @@ function publicKeyFromBase64(encoded: string | null | undefined): KeyObject | nu
 export function createApp(config: ServerConfig): ServerHandle {
   const { store, rawTools, agentId, merchantId } = config
   const app = express()
+  app.disable("x-powered-by")
 
   let mandateId = config.mandateId
   let running = false
@@ -278,6 +279,18 @@ export function createApp(config: ServerConfig): ServerHandle {
   // -------------------------------------------------------------------------
   // Middleware
   // -------------------------------------------------------------------------
+
+  // --- Hardening headers ---------------------------------------------------
+  // These describe the response, not who may read it, so they are safe to set
+  // globally. The console may still be framed by its own origin (the checkout
+  // flow does not need cross-origin framing), and no referrer leaks to PayPal
+  // or to any link a judge follows from the page.
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff")
+    res.setHeader("X-Frame-Options", "SAMEORIGIN")
+    res.setHeader("Referrer-Policy", "no-referrer")
+    next()
+  })
 
   app.use(express.json({ limit: "256kb" }))
 

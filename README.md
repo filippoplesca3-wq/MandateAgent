@@ -5,7 +5,7 @@
 [![CI](https://github.com/filippoplesca3-wq/MandateAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/filippoplesca3-wq/MandateAgent/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/filippoplesca3-wq/MandateAgent?label=release)](https://github.com/filippoplesca3-wq/MandateAgent/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Tests: 194](https://img.shields.io/badge/tests-194%20passing-brightgreen.svg)](#tests)
+[![Tests: 195](https://img.shields.io/badge/tests-195%20passing-brightgreen.svg)](#tests)
 ![PayPal AI Hackathon 2026](https://img.shields.io/badge/PayPal%20AI%20Hackathon-2026-003087)
 
 Agent Mandate lets an AI agent buy things for a person without ever holding the
@@ -43,7 +43,7 @@ approved by a human, $99 denied, and every decision in the ledger.*
 4. **Verify the mandate.** Press **Verify** next to the signature. The console
    shows `SIGNATURE VALID · Ed25519 · recorded key`: the mandate on screen
    checks out against the key the recording was signed with.
-5. **Run the proof.** `npm ci && npm test` (194 tests),
+5. **Run the proof.** `npm ci && npm test` (195 tests),
    `npm run verify:recording` (offline Ed25519 check, no server),
    `npm run check:demo -- <url>` (audits the demo's own claims) and
    `npm run check:live` (real PayPal sandbox + Gemini).
@@ -94,7 +94,7 @@ Vitest · MCP
 
 | Criterion | Where to look |
 | --- | --- |
-| **Technological implementation** | 194 tests across 18 files, including concurrent approvals, budget races, signature forgery, tampered claims, revoked and expired mandates, CORS, rate limits, request validation and ledger accounting. `npm test`, `npm run typecheck`, `npm run build`. |
+| **Technological implementation** | 195 tests across 18 files, including concurrent approvals, budget races, signature forgery, tampered claims, revoked and expired mandates, CORS, rate limits, request validation and ledger accounting. `npm test`, `npm run typecheck`, `npm run build`. |
 | **Use of PayPal** | Real Agent Toolkit tools, sandbox order creation and capture, JS SDK v6 checkout, sandbox decline path, signature-verified webhooks, public-key mandate verification. See "How PayPal is used" and "Live mode check". |
 | **Design** | One deterministic core, swappable clients. The guard resolves amounts instead of trusting the model; the ledger records refusals as evidence; the console shows the mandate, run timeline, decisions and ledger live. |
 | **Potential impact** | Gives buyers a safe way to delegate spending and gives merchants a verifiable signal that an agent is authorised. The same mandate artefact works for procurement, subscriptions and expense limits. |
@@ -556,7 +556,7 @@ about real agents.
 ## Tests
 
 ```bash
-npm test          # 194 tests, 18 files
+npm test          # 195 tests, 18 files
 npm run typecheck
 npm run build
 npm run verify    # test + build

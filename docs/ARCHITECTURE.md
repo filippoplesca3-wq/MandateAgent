@@ -202,7 +202,7 @@ deliberately ignores SQLite.
 | `src/server/` | Express API, SSE, replay player, demo seed |
 | `src/mcp/` | The same guarded tools over MCP stdio |
 | `src/web/` | React console and AG Grid ledger |
-| `tests/` | 194 tests across 18 files |
+| `tests/` | 195 tests across 18 files |
 
 ## Why this shape
 

@@ -83,6 +83,17 @@ describe("CORS", () => {
   })
 })
 
+describe("hardening headers", () => {
+  it("sets baseline headers and hides the framework", async () => {
+    const response = await fetch(`${base}/api/health`)
+    expect(response.status).toBe(200)
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff")
+    expect(response.headers.get("x-frame-options")).toBe("SAMEORIGIN")
+    expect(response.headers.get("referrer-policy")).toBe("no-referrer")
+    expect(response.headers.get("x-powered-by")).toBeNull()
+  })
+})
+
 describe("request validation", () => {
   it("rejects a body that fails the zod schema", async () => {
     const response = await fetch(`${base}/api/evaluate`, {

@@ -131,7 +131,7 @@ model.
 ## Accomplishments that we're proud of
 
 - A deterministic enforcement layer that a manipulated model cannot widen.
-- 194 tests across 18 files, covering signature forgery, tampered claims, revoked
+- 195 tests across 18 files, covering signature forgery, tampered claims, revoked
   and expired mandates, concurrent approvals, budget races, ledger accounting,
   CORS, rate limits and request validation.
 - A real PayPal sandbox path: order creation, browser approval, capture, declines
