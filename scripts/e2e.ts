@@ -62,7 +62,7 @@ const { tools } = guardTools(paypal.tools, {
 const brief = describeMandate(store, envelope.claims.id)
 
 console.log("=".repeat(78))
-console.log(`PAYPAL MODE: ${paypal.mode}  â€”  ${paypal.note}`)
+console.log(`PAYPAL MODE: ${paypal.mode}  —  ${paypal.note}`)
 console.log("=".repeat(78))
 console.log(brief)
 console.log("=".repeat(78))

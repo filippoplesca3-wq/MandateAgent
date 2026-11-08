@@ -163,4 +163,28 @@ describe("replay mandate verification", () => {
     const response = await fetch(`${base}/api/mandates/does-not-exist/verify`)
     expect(response.status).toBe(404)
   })
+
+  it("refuses every write with 409 even when no admin token is configured", async () => {
+    const writes = [
+      "/api/mandate",
+      "/api/mandate/revoke",
+      "/api/demo/injection",
+      "/api/approvals/does-not-exist/resolve",
+    ]
+
+    for (const path of writes) {
+      const response = await fetch(`${base}${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      })
+      const body = (await response.json()) as { ok: boolean; error: string }
+
+      // A recording has no admin, so 401/503 would misdescribe it. The docs
+      // promise 409, and the promise should not depend on server config.
+      expect(response.status, path).toBe(409)
+      expect(body.ok, path).toBe(false)
+      expect(body.error, path).toContain("read-only")
+    }
+  })
 })

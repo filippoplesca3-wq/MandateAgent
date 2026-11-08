@@ -131,7 +131,7 @@ model.
 ## Accomplishments that we're proud of
 
 - A deterministic enforcement layer that a manipulated model cannot widen.
-- 193 tests across 18 files, covering signature forgery, tampered claims, revoked
+- 194 tests across 18 files, covering signature forgery, tampered claims, revoked
   and expired mandates, concurrent approvals, budget races, ledger accounting,
   CORS, rate limits and request validation.
 - A real PayPal sandbox path: order creation, browser approval, capture, declines
@@ -211,10 +211,16 @@ Screenshots for the Devpost gallery are in `docs/screenshots/`:
    curl https://agent-mandate.onrender.com/api/mandates/<id>/verify
    ```
 
+   Or run the whole audit in one command:
+   `npm run check:demo -- https://agent-mandate.onrender.com`. It checks health,
+   the published key, both verification paths, tamper rejection and the read-only
+   write refusal, and exits non-zero on any failure.
+
 5. Issue, revoke and approve are disabled on the hosted demo: a recording must
    not be edited, so the API refuses those writes with `409`. To exercise them,
    run locally (`npm install`, copy `.env.example` to `.env`, set
-   `ADMIN_TOKEN`, `npm run dev`).
+   `ADMIN_TOKEN`, `npm run dev`). `npm run demo` serves the same recording
+   locally with no `.env` at all.
 6. The live PayPal sandbox checkout is local-only because it needs sandbox
    credentials. The video shows the sandbox credentials and the **LIVE** badge,
    then the full create → approve → capture flow.

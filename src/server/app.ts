@@ -265,6 +265,16 @@ export function createApp(config: ServerConfig): ServerHandle {
     return true
   }
 
+  /**
+   * Refuse a write before authentication. A recording has no admin, so
+   * "admin disabled" (503) or "bad token" (401) would misdescribe it. The
+   * honest answer is always 409, which is what the README promises.
+   */
+  function replayIsReadOnly(_req: Request, res: Response, next: NextFunction): void {
+    if (refuseInReplay(res)) return
+    next()
+  }
+
   // -------------------------------------------------------------------------
   // Middleware
   // -------------------------------------------------------------------------
@@ -373,8 +383,7 @@ export function createApp(config: ServerConfig): ServerHandle {
   // Mandate lifecycle
   // -------------------------------------------------------------------------
 
-  app.post("/api/mandate", requireAdmin, (req, res, next) => {
-    if (refuseInReplay(res)) return
+  app.post("/api/mandate", replayIsReadOnly, requireAdmin, (req, res, next) => {
     const body = validateBody(mandateBody, req.body, next)
     if (!body) return
     try {
@@ -418,8 +427,7 @@ export function createApp(config: ServerConfig): ServerHandle {
     }
   })
 
-  app.post("/api/mandate/revoke", requireAdmin, (req, res, next) => {
-    if (refuseInReplay(res)) return
+  app.post("/api/mandate/revoke", replayIsReadOnly, requireAdmin, (req, res, next) => {
     const body = validateBody(revokeBody, req.body, next)
     if (!body) return
     try {
@@ -695,9 +703,7 @@ export function createApp(config: ServerConfig): ServerHandle {
    * The PayPal tools are stubs: this scenario must be safe even if someone
    * issues a mandate that would permit the merchant, so it can never capture.
    */
-  app.post("/api/demo/injection", rateLimit, (req, res, next) => {
-    if (refuseInReplay(res)) return
-
+  app.post("/api/demo/injection", rateLimit, replayIsReadOnly, (req, res, next) => {
     void (async () => {
       try {
         if (!store.get(mandateId)) throw new BadRequest("No current mandate. Issue one first.")
@@ -766,9 +772,7 @@ export function createApp(config: ServerConfig): ServerHandle {
   // Approvals
   // -------------------------------------------------------------------------
 
-  app.post("/api/approvals/:id/resolve", requireAdmin, (req, res, next) => {
-    if (refuseInReplay(res)) return
-
+  app.post("/api/approvals/:id/resolve", replayIsReadOnly, requireAdmin, (req, res, next) => {
     const body = validateBody(approvalBody, req.body, next)
     if (!body) return
     const params = validateBody(approvalParams, req.params, next)

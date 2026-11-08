@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/filippoplesca3-wq/MandateAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/filippoplesca3-wq/MandateAgent/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Tests: 193](https://img.shields.io/badge/tests-193%20passing-brightgreen.svg)](#tests)
+[![Tests: 194](https://img.shields.io/badge/tests-194%20passing-brightgreen.svg)](#tests)
 
 Agent Mandate lets an AI agent buy things for a person without ever holding the
 wallet. The human signs a scoped, expiring, revocable **mandate** — total budget,
@@ -32,7 +32,8 @@ approved by a human, $99 denied, and every decision in the ledger.*
 
 1. **Open the hosted demo** and press **Play recording**. The header says
    `replay`; the banner names the model and the capture date. No key, no API
-   calls.
+   calls. If the instance is asleep, `npm ci && npm run demo` serves the same
+   recording at http://localhost:3001.
 2. **Read the ledger.** One run produces all three outcomes: $24 allowed, $45
    escalated and approved, $99 denied at `sketchy-deals`.
 3. **Try a policy check.** The **Test a payment** presets run a real dry-run
@@ -40,14 +41,16 @@ approved by a human, $99 denied, and every decision in the ledger.*
 4. **Verify the mandate.** Press **Verify** next to the signature. The console
    shows `SIGNATURE VALID · Ed25519 · recorded key`: the mandate on screen
    checks out against the key the recording was signed with.
-5. **Run the proof.** `npm ci && npm test` (193 tests) and `npm run check:live`
-   (real PayPal sandbox + Gemini).
+5. **Run the proof.** `npm ci && npm test` (194 tests),
+   `npm run check:demo -- <url>` (audits the demo's own claims) and
+   `npm run check:live` (real PayPal sandbox + Gemini).
 6. **Go deeper:** [architecture](docs/ARCHITECTURE.md),
    [security model](docs/SECURITY.md), [Devpost copy](docs/SUBMISSION.md),
    [demo script](docs/DEMO_SCRIPT.md).
 
 If the hosted instance is asleep, the first request can take 30–60 seconds. The
-[Render blueprint](render.yaml) deploys a fresh copy with no credentials.
+[Render blueprint](render.yaml) deploys a fresh copy with no credentials, and
+`npm run demo` runs the recording locally with no credentials at all.
 
 ## How PayPal is used
 
@@ -88,7 +91,7 @@ Vitest · MCP
 
 | Criterion | Where to look |
 | --- | --- |
-| **Technological implementation** | 193 tests across 18 files, including concurrent approvals, budget races, signature forgery, tampered claims, revoked and expired mandates, CORS, rate limits, request validation and ledger accounting. `npm test`, `npm run typecheck`, `npm run build`. |
+| **Technological implementation** | 194 tests across 18 files, including concurrent approvals, budget races, signature forgery, tampered claims, revoked and expired mandates, CORS, rate limits, request validation and ledger accounting. `npm test`, `npm run typecheck`, `npm run build`. |
 | **Use of PayPal** | Real Agent Toolkit tools, sandbox order creation and capture, JS SDK v6 checkout, sandbox decline path, signature-verified webhooks, public-key mandate verification. See "How PayPal is used" and "Live mode check". |
 | **Design** | One deterministic core, swappable clients. The guard resolves amounts instead of trusting the model; the ledger records refusals as evidence; the console shows the mandate, run timeline, decisions and ledger live. |
 | **Potential impact** | Gives buyers a safe way to delegate spending and gives merchants a verifiable signal that an agent is authorised. The same mandate artefact works for procurement, subscriptions and expense limits. |
@@ -137,6 +140,18 @@ can never be replayed or stretched to cover something else.
 
 ## Try it in 60 seconds
 
+Fastest path, with no `.env` and no credentials:
+
+```bash
+npm ci
+npm run demo
+```
+
+Open http://localhost:3001. This serves the same read-only recording as the
+hosted demo: no PayPal call, no Gemini call, no key.
+
+To run the live app instead:
+
 ```bash
 npm install
 cp .env.example .env          # Windows: copy .env.example .env
@@ -154,8 +169,9 @@ through the API.
 
 The **hosted demo** is different: it is a read-only replay of a recorded run. It
 starts with a pre-seeded mandate, the issue/revoke/approve buttons are disabled,
-and the API refuses writes with `409`. Run locally to try those actions or the
-live sandbox checkout.
+and the API refuses writes with `409`. Run `npm run demo` to serve the same
+recording locally, or `npm run dev` to try those actions or the live sandbox
+checkout.
 
 To go live, add sandbox credentials from
 [developer.paypal.com](https://developer.paypal.com/dashboard/applications/sandbox)
@@ -447,6 +463,15 @@ the mandate in one click without copying a key:
 *`SIGNATURE VALID · Ed25519 · recorded key` — the hosted replay proves the
 mandate on screen with the key it was recorded with.*
 
+Audit any running demo, local or hosted, with one command:
+
+```bash
+npm run check:demo -- https://agent-mandate.onrender.com
+```
+
+It checks health, the published Ed25519 key, stored and posted verification,
+tamper rejection and read-only writes, then exits non-zero if any claim fails.
+
 HMAC-SHA256 envelopes remain verifiable for backwards compatibility: the same
 `POST /api/verify-mandate` accepts them and compares the signature with
 `crypto.timingSafeEqual`. Unknown algorithms are rejected. New mandates are
@@ -502,7 +527,7 @@ about real agents.
 ## Tests
 
 ```bash
-npm test          # 193 tests, 18 files
+npm test          # 194 tests, 18 files
 npm run typecheck
 npm run build
 npm run verify    # test + build, the same check CI runs

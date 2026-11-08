@@ -165,7 +165,10 @@ fires two approve calls at once and asserts exactly one execution.
 Replay serves `replays/demo-run.json`, recorded by `npm run record`. Each frame
 is a deep-cloned snapshot captured at the moment the state changed. Playback
 does not re-run the model or the guard, and the UI labels the session as a
-recording.
+recording. `npm run demo` builds the console and serves this recording with no
+environment variables at all; `npm run check:demo -- <url>` audits a running
+instance, including the read-only refusal, which is answered before
+authentication so it is `409` even when no admin token exists.
 
 The recording also embeds the SPKI public key it was signed with. A hosted
 server boots with its own ephemeral key, so `/api/mandate/public-key`,
@@ -197,7 +200,7 @@ deliberately ignores SQLite.
 | `src/server/` | Express API, SSE, replay player, demo seed |
 | `src/mcp/` | The same guarded tools over MCP stdio |
 | `src/web/` | React console and AG Grid ledger |
-| `tests/` | 193 tests across 18 files |
+| `tests/` | 194 tests across 18 files |
 
 ## Why this shape
 

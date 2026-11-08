@@ -18,6 +18,13 @@ REPLAY_FILE=replays/demo-run.json npm start
 
 Open `http://localhost:3001`. The health check is `GET /api/health`.
 
+`npm run demo` does the build and the environment variable for you:
+
+```bash
+npm ci
+npm run demo
+```
+
 ## Render (free tier, blueprint)
 
 `render.yaml` is already in the repo.
@@ -29,6 +36,15 @@ Open `http://localhost:3001`. The health check is `GET /api/health`.
    `https://agent-mandate.onrender.com`.
 5. Open the URL. Free web services sleep after inactivity; the first request
    can take 30–60 seconds to wake the instance. That is expected.
+6. Run the audit against the deployed URL:
+
+   ```bash
+   npm run check:demo -- https://agent-mandate.onrender.com
+   ```
+
+   It checks the published key, both verification paths, tamper rejection and
+   the read-only write refusal, and exits non-zero on any failure. Re-run it
+   before submitting.
 
 The blueprint sets:
 

@@ -75,7 +75,7 @@ function remaining(store: Store, mandateId: string): number {
   return store.get(mandateId)!.state.spendToDate.amount
 }
 
-describe("guard â€” create_order", () => {
+describe("guard — create_order", () => {
   it("executes an order the mandate permits", async () => {
     const { tools } = setup()
     const result = await call(tools, "create_order", orderArgs(45))
@@ -128,7 +128,7 @@ describe("guard â€” create_order", () => {
   })
 })
 
-describe("guard â€” pay_order", () => {
+describe("guard — pay_order", () => {
   const seed = (amount: number, merchant = MERCHANT): SimulatedOrder[] => [
     { id: "ORD00000000000001", status: "CREATED", amount, currency: "USD", merchant },
   ]
@@ -396,7 +396,7 @@ describe("guard — escalation", () => {
   })
 })
 
-describe("guard â€” mandate validity", () => {
+describe("guard — mandate validity", () => {
   it("blocks even read tools once the mandate is revoked", async () => {
     const { store, mandateId, tools } = setup()
     store.revoke(mandateId)
@@ -466,7 +466,7 @@ describe("guard â€” mandate validity", () => {
   })
 })
 
-describe("guard â€” ledger integrity", () => {
+describe("guard — ledger integrity", () => {
   it("records the resolved amount on every spend decision", async () => {
     const { store, tools } = setup({
       seedOrders: [
