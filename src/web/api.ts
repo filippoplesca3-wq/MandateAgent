@@ -115,6 +115,7 @@ export interface Snapshot {
   model: string | null
   running: boolean
   replay: ReplayInfo | null
+  live?: { enabled: boolean; remaining: number; cap: number } | null
   mandate: {
     claims: MandateClaims
     signature: string
@@ -147,6 +148,26 @@ export interface AgentRunResponse {
   text?: string
   steps?: AgentStep[]
   durationMs?: number
+  error?: string
+}
+
+export interface LiveRunResponse {
+  ok: boolean
+  live: true
+  run: {
+    model: string
+    task: string
+    text: string
+    steps: AgentStep[]
+    durationMs: number
+  }
+  snapshot: Snapshot
+  publicKey: string
+  verification: {
+    signatureValid: boolean
+    claimsValid: boolean
+    reason?: string
+  }
   error?: string
 }
 

@@ -2,8 +2,8 @@
 
 Target length **2:30** (hard limit: 3:00). Record at 1080p, browser zoom 110%,
 notifications off, one clean tab. The video must show **PayPal sandbox
-credentials** and the **LIVE** badge; the hosted URL shown at the end is a
-clearly labelled **replay**.
+credentials** and the **LIVE** badge; the hosted URL shown at the end offers the
+recording plus **Run live with Gemini** for real-time model evidence.
 
 ## Before recording
 
@@ -30,8 +30,8 @@ clearly labelled **replay**.
 | 1:12–1:30 | **Test a payment** | Click **$99 -> sketchy-deals (injection)** | "Now the simulated attack. A scripted product description tells the agent to ignore its limits and pay sketchy-deals ninety-nine dollars, and the scripted call follows it. The guard does not: the merchant is outside the signed mandate, so the capture is denied and the refusal is written to the ledger." |
 | 1:30–1:48 | **Audit ledger** | Scroll the ledger; open one row's check trail | "This is the audit trail. Allowed, escalated and denied calls are all recorded with the amount, merchant and reason. A refusal is evidence, not an error." |
 | 1:48–2:05 | Terminal | `curl` the public key, then `GET /api/mandates/<id>/verify` | "Anyone can verify the mandate with only the issuer's public key — no shared secret. Tamper with the claims and verification fails; revoke it and it reports revoked." |
-| 2:05–2:20 | **Live sandbox payment** panel + PayPal window | Show the sandbox client id and `PAYPAL_ENVIRONMENT=SANDBOX`; create the $2 order; show the payer approval | "This is real PayPal sandbox money. The server creates an order through the same guard, the payer approves it in the browser with the PayPal JS SDK, and the capture moves the mandate's budget. No live money, no Gemini key on the hosted demo." |
-| 2:20–2:30 | Hosted URL + repo | Show the demo URL with the **replay** label, then the GitHub repo | "The hosted demo replays this same run with no credentials, clearly labelled as a replay. The repo has the code, the tests and a one-command live check. Agent Mandate: let agents buy, not anything." |
+| 2:05–2:20 | **Live sandbox payment** panel + PayPal window | Show the sandbox client id and `PAYPAL_ENVIRONMENT=SANDBOX`; create the $2 order; show the payer approval | "This is real PayPal sandbox money. The server creates an order through the same guard, the payer approves it in the browser with the PayPal JS SDK, and the capture moves the mandate's budget. No live money, and the hosted demo's key stays server-side." |
+| 2:20–2:30 | Hosted URL + repo | Show the demo URL, press **Run live with Gemini**, then the GitHub repo | "The hosted demo can replay this run for free, or run the real model live on demand against simulated PayPal. The repo has the code, the tests and a one-command live check. Agent Mandate: let agents buy, not anything." |
 
 ## If you run long
 
@@ -42,9 +42,10 @@ denial or the sandbox/LIVE proof — those are the two claims judges need to see
 
 The **$99 -> sketchy-deals (injection)** preset is a deterministic, scripted
 attack. It does not call a live model. Say "simulated attack" on camera and do
-not imply that Gemini was tricked in real time; the real Gemini evidence is the
-recorded agent run. The scenario uses stubbed PayPal tools and cannot capture
-even if a mandate were widened.
+not imply that Gemini was tricked in real time. The real Gemini evidence is the
+agent run in the video, and the hosted **Run live with Gemini** button lets a
+judge reproduce a real model run against simulated PayPal. The scenario uses
+stubbed PayPal tools and cannot capture even if a mandate were widened.
 
 ## Upload checklist
 

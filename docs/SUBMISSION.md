@@ -50,7 +50,9 @@ happens:
 
 The console shows the mandate, the live run, the approval queue, the audit ledger
 and a seller-side trust score. A hosted replay demonstrates the whole flow with
-no credentials. A live path creates and captures real PayPal **sandbox** orders.
+no credentials, and a judge can press **Run live with Gemini** to watch the real
+model run against simulated PayPal. A local live path creates and captures real
+PayPal **sandbox** orders.
 
 ## How we built it
 
@@ -122,21 +124,25 @@ model.
   bound to the exact order id, amount and merchant, and consumed atomically.
 - **Trusting the model's numbers.** The model can quote any `itemTotal`. The
   guard recomputes the total and reads order amounts back from PayPal instead.
-- **Live vs. hosted.** A public demo cannot hold a Gemini key or spend quota.
-  The hosted build serves a recording of a real run and labels it as a replay;
-  live mode is a local, sandbox-only path.
+- **Live vs. hosted.** The hosted build defaults to a recording so it works with
+  no credentials, but judges can press **Run live with Gemini**: a real model
+  run against simulated PayPal, in a throwaway store, capped per day and per
+  visitor. The server holds the key; the browser never sees it. Real PayPal
+  sandbox checkout stays local and is shown in the video.
 - **Free-tier limits.** Gemini's free tier caps requests per day per model, so
-  the agent falls back across models and the demo keeps a recorded run.
+  the agent falls back across models, the hosted live run is capped, and the
+  recording remains the zero-cost fallback.
 
 ## Accomplishments that we're proud of
 
 - A deterministic enforcement layer that a manipulated model cannot widen.
-- 195 tests across 18 files, covering signature forgery, tampered claims, revoked
+- 206 tests across 19 files, covering signature forgery, tampered claims, revoked
   and expired mandates, concurrent approvals, budget races, ledger accounting,
   CORS, rate limits and request validation.
 - A real PayPal sandbox path: order creation, browser approval, capture, declines
   and signature-verified webhooks.
-- A hosted demo that needs no credentials and still shows the real run.
+- A hosted demo that needs no credentials, still shows the real run, and can run
+  the real model live on demand without exposing the key or moving money.
 - The recorded mandate verifies offline against the key embedded in the file, and
   a one-cent-wider copy fails; CI runs that proof on every push.
 - One artefact — the mandate — that serves buyers, agents and merchants.
@@ -150,8 +156,8 @@ model.
 - **Refusals are the product.** A denial with a reason and a ledger entry is more
   convincing than a happy path.
 - **Demo constraints shape architecture.** Replay mode, the simulator and the
-  model fallback all exist because a public demo cannot depend on secrets or
-  quota.
+  model fallback all exist because a public demo should not depend on secrets or
+  quota for its default path.
 
 ## What's next
 
@@ -171,7 +177,7 @@ MCP, Docker, Render.
 
 | | |
 | --- | --- |
-| **Hosted demo (replay, no credentials)** | `https://agent-mandate.onrender.com` — **replace after deploy** |
+| **Hosted demo (replay + optional live run)** | `https://agent-mandate.onrender.com` — **replace after deploy** |
 | **Video (under 3 minutes)** | `https://youtu.be/...` — **replace after upload** |
 | **Source code** | https://github.com/filippoplesca3-wq/MandateAgent |
 | **License** | MIT |
@@ -181,9 +187,12 @@ MCP, Docker, Render.
 | **Architecture** | https://github.com/filippoplesca3-wq/MandateAgent/blob/main/docs/ARCHITECTURE.md |
 | **Security model** | https://github.com/filippoplesca3-wq/MandateAgent/blob/main/docs/SECURITY.md |
 
-The hosted demo is a **read-only recording of a real Gemini run**, clearly
-labelled `replay` in the header. It makes no PayPal or Gemini calls and needs no
-secrets. It starts with a pre-seeded demo mandate.
+The hosted demo serves a **read-only recording of a real Gemini run**, clearly
+labelled `replay` in the header. It needs no PayPal credentials. When the
+operator configures a server-side Gemini key, the banner also offers **Run live
+with Gemini**: the real model runs against simulated PayPal in a fresh,
+throwaway store, and the key never reaches the browser. Both paths start with a
+pre-seeded demo mandate.
 
 Screenshots for the Devpost gallery are in `docs/screenshots/`:
 `console.png` (the console after one run), `ledger.png` (the three outcomes),
@@ -198,12 +207,18 @@ Screenshots for the Devpost gallery are in `docs/screenshots/`:
 2. Press **Play recording** to watch the run: a $24 order is allowed, a $45
    order is escalated, a $99 payment to `sketchy-deals` is denied, and every
    decision lands in the audit ledger.
-3. Use the **Test a payment** presets. The $12, $45 and $200 presets run a live
+3. Press **Run live with Gemini** in the banner (shown when the deployment has a
+   server-side key). This runs the real model now, against simulated PayPal, in
+   a fresh store with a fresh mandate. The dialog shows the model's tool calls,
+   the $99 denial, the resulting budget and a server-computed signature check.
+   Nothing it does changes the recording, and no money can move. Runs are capped
+   per day and per visitor; a `429` explains which limit was hit.
+4. Use the **Test a payment** presets. The $12, $45 and $200 presets run a live
    dry-run policy check against the pre-seeded mandate. The **$99 ->
    sketchy-deals (injection)** preset is a deterministic, scripted attack; on
    the hosted replay it is disabled because writes are refused. Run locally to
    trigger it and see the refusal appended to the ledger.
-4. Verify the mandate on screen without trusting the page. Press **Verify** next
+5. Verify the mandate on screen without trusting the page. Press **Verify** next
    to the signature, or call the API. The hosted demo publishes the recording's
    own public key (`source: "recording"`), and
    `GET /api/mandates/<id>/verify` returns `ok: true` for the recorded id. Send
@@ -225,15 +240,16 @@ Screenshots for the Devpost gallery are in `docs/screenshots/`:
    `replays/demo-run.json` against the key embedded in the file and proves a
    one-cent-wider copy fails.
 
-5. Issue, revoke and approve are disabled on the hosted demo: a recording must
+6. Issue, revoke and approve are disabled on the hosted demo: a recording must
    not be edited, so the API refuses those writes with `409`. To exercise them,
    run locally (`npm install`, copy `.env.example` to `.env`, set
    `ADMIN_TOKEN`, `npm run dev`). `npm run demo` serves the same recording
    locally with no `.env` at all.
-6. The live PayPal sandbox checkout is local-only because it needs sandbox
-   credentials. The video shows the sandbox credentials and the **LIVE** badge,
-   then the full create → approve → capture flow.
-7. State is in memory and the free instance sleeps. A restart starts a fresh
+7. The live PayPal sandbox checkout is local-only because it needs sandbox
+   credentials. The video shows the **LIVE** badge and a real sandbox payer
+   approval, then the full create → approve → capture flow. The hosted live run
+   is the model half; the video is the payment-rail half.
+8. State is in memory and the free instance sleeps. A restart starts a fresh
    pre-seeded mandate; that is expected, not a failure.
 
 ## Team

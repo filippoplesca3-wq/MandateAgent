@@ -179,6 +179,25 @@ recording key when serving a replay. That is why a visitor can verify the
 mandate on screen against the key the demo publishes, and why a widened copy
 of the same envelope still fails.
 
+### Live runs on a replay deployment
+
+A recording is static, so a judge cannot watch the model think. When the
+operator sets `DEMO_LIVE=1` and a server-side Gemini key, the same process also
+exposes `POST /api/demo/live-run`. The route calls `runLiveDemo` in
+`src/server/live-demo.ts`, which builds a **fresh** `Store` with a random
+signing secret, issues a new demo mandate, seeds the same orders and trust
+history, wraps `createSimulatedTools` in the normal guard, and runs the normal
+agent loop. The response carries the run, the resulting snapshot and a
+server-computed signature check.
+
+Isolation is structural: the live run never receives the replay player or the
+recorded store, so it cannot mutate the recording, consume its budget or leave
+approvals behind. The key lives in the process environment and is only read by
+the route; it is never serialized into a snapshot or a response. Three limits
+bound cost: a global daily cap, a per-IP cooldown and one in-flight run. The
+route is disabled when the key or `DEMO_LIVE` is absent, and PayPal is always
+simulated on this path.
+
 ## Persistence
 
 The default store is in memory, which keeps the demo inspectable and makes every
@@ -199,10 +218,10 @@ deliberately ignores SQLite.
 | `src/paypal/simulated.ts` | Tool doubles built from the real toolkit schemas |
 | `src/paypal/webhook.ts` | PayPal webhook parsing and signature verification |
 | `src/agent/` | Gemini adapter and system prompt; no policy logic |
-| `src/server/` | Express API, SSE, replay player, demo seed |
+| `src/server/` | Express API, SSE, replay player, live run, demo seed |
 | `src/mcp/` | The same guarded tools over MCP stdio |
 | `src/web/` | React console and AG Grid ledger |
-| `tests/` | 195 tests across 18 files |
+| `tests/` | 206 tests across 19 files |
 
 ## Why this shape
 

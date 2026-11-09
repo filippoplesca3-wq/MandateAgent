@@ -5,7 +5,7 @@
 [![CI](https://github.com/filippoplesca3-wq/MandateAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/filippoplesca3-wq/MandateAgent/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/filippoplesca3-wq/MandateAgent?label=release)](https://github.com/filippoplesca3-wq/MandateAgent/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Tests: 195](https://img.shields.io/badge/tests-195%20passing-brightgreen.svg)](#tests)
+[![Tests: 206](https://img.shields.io/badge/tests-206%20passing-brightgreen.svg)](#tests)
 ![PayPal AI Hackathon 2026](https://img.shields.io/badge/PayPal%20AI%20Hackathon-2026-003087)
 
 Agent Mandate lets an AI agent buy things for a person without ever holding the
@@ -15,8 +15,9 @@ PayPal tool call the model makes passes through a deterministic guard that
 resolves the real order amount and merchant, checks it against the signed claims,
 records the decision in an append-only ledger, and refuses anything outside the
 bounds. The model can be prompt-injected, confused or simply wrong; the mandate
-still holds. The hosted demo replays a real Gemini run, while the live path
-creates and captures real PayPal **sandbox** orders.
+still holds. The hosted demo replays a real Gemini run, and a judge can press
+**Run live with Gemini** to watch the real model run now against simulated
+PayPal. The local live path creates and captures real PayPal **sandbox** orders.
 
 ![Agent Mandate console after a recorded run](docs/screenshots/console.png)
 
@@ -36,18 +37,23 @@ approved by a human, $99 denied, and every decision in the ledger.*
    `replay`; the banner names the model and the capture date. No key, no API
    calls. If the instance is asleep, `npm ci && npm run demo` serves the same
    recording at http://localhost:3001.
-2. **Read the ledger.** One run produces all three outcomes: $24 allowed, $45
+2. **Or run the model live.** Press **Run live with Gemini** in the banner. The
+   server runs a real Gemini agent against simulated PayPal in a throwaway
+   store, then shows the fresh mandate, the guarded tool calls, the $99 denial
+   and a server-computed signature check. No PayPal credentials are involved
+   and no money can move. Runs are capped per day and per visitor.
+3. **Read the ledger.** One run produces all three outcomes: $24 allowed, $45
    escalated and approved, $99 denied at `sketchy-deals`.
-3. **Try a policy check.** The **Test a payment** presets run a real dry-run
+4. **Try a policy check.** The **Test a payment** presets run a real dry-run
    evaluation against the pre-seeded mandate.
-4. **Verify the mandate.** Press **Verify** next to the signature. The console
+5. **Verify the mandate.** Press **Verify** next to the signature. The console
    shows `SIGNATURE VALID · Ed25519 · recorded key`: the mandate on screen
    checks out against the key the recording was signed with.
-5. **Run the proof.** `npm ci && npm test` (195 tests),
+6. **Run the proof.** `npm ci && npm test` (206 tests),
    `npm run verify:recording` (offline Ed25519 check, no server),
    `npm run check:demo -- <url>` (audits the demo's own claims) and
    `npm run check:live` (real PayPal sandbox + Gemini).
-6. **Go deeper:** [architecture](docs/ARCHITECTURE.md),
+7. **Go deeper:** [architecture](docs/ARCHITECTURE.md),
    [security model](docs/SECURITY.md), [Devpost copy](docs/SUBMISSION.md),
    [demo script](docs/DEMO_SCRIPT.md).
 
@@ -94,7 +100,7 @@ Vitest · MCP
 
 | Criterion | Where to look |
 | --- | --- |
-| **Technological implementation** | 195 tests across 18 files, including concurrent approvals, budget races, signature forgery, tampered claims, revoked and expired mandates, CORS, rate limits, request validation and ledger accounting. `npm test`, `npm run typecheck`, `npm run build`. |
+| **Technological implementation** | 206 tests across 19 files, including concurrent approvals, budget races, signature forgery, tampered claims, revoked and expired mandates, CORS, rate limits, request validation and ledger accounting. `npm test`, `npm run typecheck`, `npm run build`. |
 | **Use of PayPal** | Real Agent Toolkit tools, sandbox order creation and capture, JS SDK v6 checkout, sandbox decline path, signature-verified webhooks, public-key mandate verification. See "How PayPal is used" and "Live mode check". |
 | **Design** | One deterministic core, swappable clients. The guard resolves amounts instead of trusting the model; the ledger records refusals as evidence; the console shows the mandate, run timeline, decisions and ledger live. |
 | **Potential impact** | Gives buyers a safe way to delegate spending and gives merchants a verifiable signal that an agent is authorised. The same mandate artefact works for procurement, subscriptions and expense limits. |
@@ -165,8 +171,8 @@ npm ci
 npm run demo
 ```
 
-Open http://localhost:3001. This serves the same read-only recording as the
-hosted demo: no PayPal call, no Gemini call, no key.
+Open http://localhost:3001. This serves the same read-only recording the hosted
+demo falls back to: no PayPal call, no Gemini call, no key.
 
 To run the live app instead:
 
@@ -343,6 +349,29 @@ npm run record            # writes replays/demo-run.json
 A visitor who wants to drive a live agent can paste their own Gemini key into the
 run panel. It is used for that single request and never stored or logged.
 
+### Run live on the hosted demo
+
+A recording is a fallback, not the whole demo. When the operator sets
+`DEMO_LIVE=1` and a server-side Gemini key, the banner also offers **Run live
+with Gemini**. That button calls `POST /api/demo/live-run` and the server:
+
+- creates a fresh in-memory `Store`, signing key and demo mandate for that one
+  request — the recording, its budget and its approvals are untouched;
+- runs the real agent against `createSimulatedTools`, so PayPal is local and no
+  credentials or money are involved;
+- returns the run, the resulting snapshot and a server-computed Ed25519 check
+  of the fresh mandate.
+
+The Gemini key never reaches the browser and is never included in a response.
+Cost is bounded three ways: `DEMO_LIVE_DAILY_CAP` runs per UTC day (default 10),
+`DEMO_LIVE_COOLDOWN_SECONDS` between runs from one address (default 120), and one
+run in flight at a time. With no key, or with `DEMO_LIVE` unset, the endpoint
+answers `503` and the recording remains the only path.
+
+This is the honest split: the hosted live run proves the **model and guard** are
+real, while the video proves the **PayPal sandbox checkout** with a real payer
+approval. The public server never holds PayPal credentials.
+
 ## Deploy on Render (free)
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/filippoplesca3-wq/MandateAgent)
@@ -353,14 +382,17 @@ run panel. It is used for that single request and never stored or logged.
 - start: `npm start`
 - env: `REPLAY_FILE=replays/demo-run.json`, plus a Render-generated
   `MANDATE_SIGNING_KEY`
+- optional live runs: `DEMO_LIVE=1`, `DEMO_LIVE_DAILY_CAP=10`,
+  `DEMO_LIVE_COOLDOWN_SECONDS=120`, and `GOOGLE_GENERATIVE_AI_API_KEY` set as a
+  secret in the Render dashboard
 
-No PayPal or Gemini credentials are required: replay mode never calls either
-service, and Render generates the signing key once so the published Ed25519
-public key stays stable. The hosted demo is **read-only**: it starts with a
-pre-seeded mandate, the issue/revoke/approve buttons are disabled, and the API
-refuses writes with `409`. Render's free web services sleep after inactivity, so
-the first request can take 30–60 seconds to wake the instance. State is in
-memory, so each wake starts a fresh demo mandate; that is expected.
+No PayPal credentials are required: replay mode never calls PayPal, and the
+hosted live run always uses the simulated tool doubles. The hosted demo is
+**read-only**: it starts with a pre-seeded mandate, the issue/revoke/approve
+buttons are disabled, and the API refuses writes with `409`. Render's free web
+services sleep after inactivity, so the first request can take 30–60 seconds to
+wake the instance. State is in memory, so each wake starts a fresh demo mandate;
+that is expected.
 
 Exact steps for Render and Railway, including optional live-sandbox variables,
 are in [DEPLOY.md](DEPLOY.md).
@@ -556,7 +588,7 @@ about real agents.
 ## Tests
 
 ```bash
-npm test          # 195 tests, 18 files
+npm test          # 206 tests, 19 files
 npm run typecheck
 npm run build
 npm run verify    # test + build

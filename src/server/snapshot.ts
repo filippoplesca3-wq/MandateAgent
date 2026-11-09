@@ -44,6 +44,14 @@ export interface SnapshotMeta {
   model?: string
   running: boolean
   replay?: ReplayInfo
+  live?: LiveDemoInfo | null
+}
+
+/** Whether this deployment can run the model on demand, and how much is left. */
+export interface LiveDemoInfo {
+  enabled: boolean
+  remaining: number
+  cap: number
 }
 
 export interface ServerSnapshot {
@@ -54,6 +62,7 @@ export interface ServerSnapshot {
   model: string | null
   running: boolean
   replay: ReplayInfo | null
+  live?: LiveDemoInfo | null
   mandate: {
     claims: MandateClaims
     signature: string
@@ -81,6 +90,7 @@ export function buildSnapshot(
     model: meta.model ?? null,
     running: meta.running,
     replay: meta.replay ?? null,
+    live: meta.live ?? null,
     mandate: stored
       ? {
           claims: stored.envelope.claims,

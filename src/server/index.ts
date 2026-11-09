@@ -48,6 +48,14 @@ const allowedOrigins = (process.env["ALLOWED_ORIGINS"] ?? "")
   .filter((origin) => origin.length > 0)
 const rateLimitPerMinute = Number(process.env["RATE_LIMIT_PER_MINUTE"] ?? 30)
 
+// Optional on-demand live run. The key stays server-side; the feature is off
+// unless the operator both sets a key and opts in with DEMO_LIVE=1. PayPal is
+// always simulated in this path, so the worst case is Gemini quota, not money.
+const liveKey = process.env["GOOGLE_GENERATIVE_AI_API_KEY"]?.trim()
+const liveDemoEnabled = process.env["DEMO_LIVE"] === "1" && Boolean(liveKey)
+const liveDailyCap = Number(process.env["DEMO_LIVE_DAILY_CAP"] ?? 10)
+const liveCooldownMs = Number(process.env["DEMO_LIVE_COOLDOWN_SECONDS"] ?? 120) * 1_000
+
 const store = new Store(
   signingKey,
   process.env["STORE_BACKEND"]?.toLowerCase() === "sqlite" && !replayFile
@@ -147,6 +155,18 @@ const { app } = createApp({
   ...(adminToken ? { adminToken } : {}),
   ...(allowedOrigins.length > 0 ? { allowedOrigins } : {}),
   ...(Number.isFinite(rateLimitPerMinute) ? { rateLimitPerMinute } : {}),
+  ...(liveDemoEnabled && liveKey
+    ? {
+        liveDemo: {
+          apiKey: liveKey,
+          ...(Number.isFinite(liveDailyCap) && liveDailyCap > 0 ? { dailyCap: liveDailyCap } : {}),
+          ...(Number.isFinite(liveCooldownMs) && liveCooldownMs >= 0
+            ? { cooldownMs: liveCooldownMs }
+            : {}),
+          ...(process.env["AGENT_MODEL"] ? { model: process.env["AGENT_MODEL"] } : {}),
+        },
+      }
+    : {}),
 })
 
 // Serve the built UI when it exists. In dev, Vite handles this.

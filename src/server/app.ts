@@ -35,6 +35,7 @@ import {
 } from "../paypal/webhook.js"
 import type { ReplayPlayer } from "./replay.js"
 import { buildSnapshot, type ServerSnapshot } from "./snapshot.js"
+import { runLiveDemo, type LiveRunInput, type LiveRunOutput } from "./live-demo.js"
 
 /** PayPal's toolkit only accepts USD, so the demo does too. */
 const CURRENCY: Currency = "USD"
@@ -124,6 +125,24 @@ export interface ServerConfig {
   allowedOrigins?: string[]
   /** Requests per minute per client on the agent endpoints. */
   rateLimitPerMinute?: number
+  /**
+   * Optional on-demand live run: real Gemini against simulated PayPal, in an
+   * isolated store. Disabled unless a server-side key is configured.
+   */
+  liveDemo?: LiveDemoConfig
+}
+
+export interface LiveDemoConfig {
+  /** Server-side only. Never included in a response or sent to the browser. */
+  apiKey: string
+  /** Maximum live runs per UTC day across all visitors. Default 10. */
+  dailyCap?: number
+  /** Minimum gap between live runs from one address. Default 2 minutes. */
+  cooldownMs?: number
+  model?: string
+  maxSteps?: number
+  /** Injectable so tests can exercise the limits without calling Gemini. */
+  run?: (input: LiveRunInput) => Promise<LiveRunOutput>
 }
 
 export interface ServerHandle {
@@ -181,9 +200,37 @@ export function createApp(config: ServerConfig): ServerHandle {
   const { store, rawTools, agentId, merchantId } = config
   const app = express()
   app.disable("x-powered-by")
+  // Render terminates TLS in front of the process. Trust one hop so req.ip is
+  // the visitor, not the proxy; otherwise every visitor shares one rate-limit
+  // bucket and one live-run cooldown.
+  app.set("trust proxy", 1)
 
   let mandateId = config.mandateId
   let running = false
+
+  // Live runs are capped globally per day and per address. In-memory is enough
+  // for the demo: a restart is a fresh window, and the cap is a cost guard, not
+  // a billing system.
+  const liveDailyCap = config.liveDemo?.dailyCap ?? 10
+  const liveCooldownMs = config.liveDemo?.cooldownMs ?? 120_000
+  const liveRunsByIp = new Map<string, number>()
+  let liveRunsDay = new Date().toISOString().slice(0, 10)
+  let liveRunsToday = 0
+  let liveRunInFlight = false
+
+  function liveRemaining(): number {
+    const today = new Date().toISOString().slice(0, 10)
+    if (today !== liveRunsDay) {
+      liveRunsDay = today
+      liveRunsToday = 0
+    }
+    return Math.max(0, liveDailyCap - liveRunsToday)
+  }
+
+  function liveInfo(): { enabled: boolean; remaining: number; cap: number } | null {
+    if (!config.liveDemo) return null
+    return { enabled: true, remaining: liveRemaining(), cap: liveDailyCap }
+  }
 
   // In a hosted replay the mandate on screen was signed by the recording key,
   // not by this process's ephemeral key.
@@ -216,13 +263,15 @@ export function createApp(config: ServerConfig): ServerHandle {
   // -------------------------------------------------------------------------
 
   function snapshot(): ServerSnapshot {
-    if (config.replay) return config.replay.snapshot()
+    const live = liveInfo()
+    if (config.replay) return { ...config.replay.snapshot(), live }
     return buildSnapshot(store, mandateId, {
       mode: config.mode,
       note: config.note,
       agentId,
       merchantId,
       running,
+      live,
       ...(config.model ? { model: config.model } : {}),
     })
   }
@@ -232,8 +281,9 @@ export function createApp(config: ServerConfig): ServerHandle {
    * stream so a quiet demo does not re-send the whole snapshot twice a second.
    */
   function fingerprint(): string {
+    const live = config.liveDemo ? liveRemaining() : -1
     if (config.replay) {
-      return `replay|${config.replay.frameIndex}|${config.replay.isPlaying}`
+      return `replay|${config.replay.frameIndex}|${config.replay.isPlaying}|${live}`
     }
 
     const stored = store.get(mandateId)
@@ -244,6 +294,7 @@ export function createApp(config: ServerConfig): ServerHandle {
     return [
       mandateId,
       running,
+      live,
       stored?.state.spendToDate.amount ?? -1,
       stored?.state.transactionCount ?? -1,
       stored?.state.revokedAt ?? "",
@@ -390,6 +441,92 @@ export function createApp(config: ServerConfig): ServerHandle {
 
   app.get("/api/state", (_req, res) => {
     res.json(snapshot())
+  })
+
+  // -------------------------------------------------------------------------
+  // Live run (optional)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Run the real agent once, against simulated PayPal, in a throwaway store.
+   *
+   * This is deliberately separate from the replay: the recording stays intact,
+   * a live run cannot spend the recorded budget or leave approvals behind, and
+   * a deployment without a server-side key simply does not expose the feature.
+   */
+  app.post("/api/demo/live-run", rateLimit, (req, res) => {
+    // A JSON content type is required so a cross-site HTML form cannot burn the
+    // daily budget with a drive-by POST; JSON fetches from another origin hit
+    // the CORS preflight instead.
+    if (!req.is("application/json")) {
+      res.status(415).json({ ok: false, error: "Send Content-Type: application/json." })
+      return
+    }
+
+    const live = config.liveDemo
+    if (!live) {
+      res.status(503).json({
+        ok: false,
+        error:
+          "Live runs are not enabled on this deployment. The recording is still available, or run the app locally with your own key.",
+      })
+      return
+    }
+
+    if (liveRemaining() <= 0) {
+      res.status(429).json({
+        ok: false,
+        error: `Today's live-run budget (${liveDailyCap}) is exhausted. The recording is still available.`,
+      })
+      return
+    }
+
+    if (liveRunInFlight) {
+      res.status(429).json({
+        ok: false,
+        error: "Another live run is in progress. Try again in a moment.",
+      })
+      return
+    }
+
+    const now = Date.now()
+    const ip = req.ip ?? "unknown"
+    const last = liveRunsByIp.get(ip) ?? 0
+    if (now - last < liveCooldownMs) {
+      const retryAfter = Math.max(1, Math.ceil((liveCooldownMs - (now - last)) / 1_000))
+      res.setHeader("Retry-After", String(retryAfter))
+      res.status(429).json({
+        ok: false,
+        error: `One live run every ${Math.round(liveCooldownMs / 1_000)}s. Try again in ${retryAfter}s.`,
+      })
+      return
+    }
+
+    liveRunsByIp.set(ip, now)
+    if (liveRunsByIp.size > 1_000) {
+      for (const [candidate, at] of liveRunsByIp) {
+        if (now - at > liveCooldownMs) liveRunsByIp.delete(candidate)
+      }
+    }
+    liveRunsToday += 1
+    liveRunInFlight = true
+
+    const runner = live.run ?? runLiveDemo
+    runner({
+      apiKey: live.apiKey,
+      ...(live.model ? { model: live.model } : {}),
+      ...(live.maxSteps ? { maxSteps: live.maxSteps } : {}),
+    })
+      .then((result) => {
+        res.json({ ok: true, live: true, ...result })
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error)
+        res.status(502).json({ ok: false, error: message })
+      })
+      .finally(() => {
+        liveRunInFlight = false
+      })
   })
 
   // -------------------------------------------------------------------------

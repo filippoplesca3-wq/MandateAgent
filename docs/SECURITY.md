@@ -31,12 +31,13 @@ them, and where the evidence lives.
 | 13 | Oversized or malformed request bodies | 256 KB body limit, zod schemas, `400` on malformed JSON, `413` on oversize | `tests/http-hardening.test.ts` — request validation |
 | 14 | An attacker captures an arbitrary PayPal order | The live checkout capture endpoint accepts only order ids the server created, bounded to 20 | `src/server/app.ts` — `checkoutOrders` |
 | 15 | A forged PayPal webhook moves money | Delivery is verified with PayPal's `/v1/notifications/verify-webhook-signature`; unconfigured means `503`, unverified means `400`; webhooks never move budget | `tests/webhook.test.ts`; `src/server/app.ts` — webhook route |
-| 16 | A secret leaks through the repo or the hosted demo | `.env` is gitignored; `.env.example` has placeholders; the public replay has no PayPal or Gemini credentials; a visitor-supplied Gemini key is used for one request and never persisted or logged | `.gitignore`; `src/server/app.ts` — agent run comment; `DEPLOY.md` |
+| 16 | A secret leaks through the repo or the hosted demo | `.env` is gitignored; `.env.example` has placeholders; the public replay has no PayPal or Gemini credentials; the hosted live-run key is read from the server environment, never sent to the browser or included in a response; a visitor-supplied Gemini key is used for one request and never persisted or logged | `.gitignore`; `src/server/app.ts` — live-run route; `src/server/live-demo.ts`; `tests/live-demo.test.ts` — key is absent from responses; `DEPLOY.md` |
 | 17 | A judge or attacker edits the hosted recording | Replay is read-only: issue, revoke, approve and the scripted attack return `409`; the UI disables those controls. The recording embeds its own public key, so the mandate on screen verifies against the published key instead of the serving process's ephemeral key | `src/server/app.ts` — `refuseInReplay`; `src/web/App.tsx`; `tests/replay-verify.test.ts` |
 | 18 | A toolkit upgrade silently adds a money-moving tool | All 47 tools are classified; unknown tools fail closed; a matrix test covers every name | `tests/policy.test.ts` — "covers every tool with exactly one class"; `tests/tools-matrix.test.ts` |
 | 19 | A failed capture still consumes budget | The reservation is released on exception or error result; only a successful call confirms it | `tests/guard.test.ts` — "does not commit budget twice when PayPal rejects a capture"; `tests/reservation.test.ts` — release |
 | 20 | The ledger disagrees with the spend counter | The invariant `spendToDate == sum(committed ledger entries)` is asserted after every outcome | `tests/guard.test.ts` — budget accounting |
 | 21 | A hostile page frames the console, sniffs response types or reads the referrer | `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` on every response; `x-powered-by` removed | `tests/http-hardening.test.ts` — hardening headers |
+| 22 | A public live run burns Gemini quota or mutates the recorded demo | Every run gets a fresh in-memory store, signing key and mandate; PayPal is simulated; a global daily cap, a per-IP cooldown and a single in-flight slot bound cost; the endpoint is off without a server-side key | `src/server/live-demo.ts`; `src/server/app.ts` — live-run caps; `tests/live-demo.test.ts` — isolation, cap, cooldown, in-flight, key leak |
 
 ## What is not protected
 
@@ -50,15 +51,18 @@ These are deliberate demo boundaries, not hidden assumptions:
   isolation.
 - **The admin token is a shared bearer secret.** Production should use SSO or
   short-lived credentials, and rotate the token.
-- **The hosted demo is a recording.** It does not call Gemini or PayPal, and the
-  UI says so. The live sandbox path is local-only because it needs credentials.
+- **The hosted demo serves a recording and an optional live run.** The recording
+  makes no Gemini or PayPal calls. The live run calls Gemini with a server-side
+  key, always against simulated PayPal, and is capped per day and per address.
+  Neither path can move money, and the video is the proof of the real sandbox
+  checkout.
 - **Trust scores are partly seeded.** Only `mandateActive` is computed live in
   the demo; the transaction and dispute inputs are fixtures. The scoring
   function itself is deterministic and tested.
 - **Transitive dependency advisories.** `npm audit` reports advisories in the
-  PayPal toolkit dependency chain. The public demo carries no PayPal or Gemini
-  credentials and caps request bodies at 256 KB; upgrading that chain is tracked
-  separately.
+  PayPal toolkit dependency chain. The public demo carries no PayPal credentials;
+  its optional Gemini key is server-side and cost-capped; request bodies are
+  capped at 256 KB. Upgrading that chain is tracked separately.
 
 ## Operational rules
 
@@ -81,7 +85,7 @@ rather than a public issue.
 
 ```bash
 npm ci
-npm test              # 195 tests, 18 files
+npm test              # 206 tests, 19 files
 npm run typecheck
 npm run build
 npm run check:live    # real PayPal sandbox + Gemini, sandbox only
