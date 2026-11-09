@@ -517,8 +517,12 @@ function Report(props: { text: string }) {
   return (
     <div className="report">
       {lines.map((line, index) => {
-        const bullet = /^\s*[*-]\s+/.test(line)
-        const body = line.replace(/^\s*[*-]\s+/, "").replace(/^#+\s*/, "")
+        const trimmed = line.trim()
+        if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+          return <hr key={index} />
+        }
+        const bullet = /^\s*[•*-]\s+/.test(line)
+        const body = line.replace(/^\s*[•*-]\s+/, "").replace(/^#+\s*/, "")
         return (
           <p key={index} className={bullet ? "report-line bullet" : "report-line"}>
             <Inline text={body} />

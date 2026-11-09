@@ -1066,6 +1066,12 @@ button.chip:focus-visible {
   color: #fff;
 }
 
+.report hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 10px 0;
+}
+
 .report code {
   font-size: 11.5px;
   background: rgba(255, 255, 255, 0.06);
