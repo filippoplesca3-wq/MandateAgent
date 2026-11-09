@@ -7,8 +7,9 @@
  *
  * The script checks the claims a judge would otherwise have to take on trust:
  * the mandate is signed, the published key verifies it, a widened copy is
- * rejected, and a replay refuses writes. It exits non-zero on the first
- * failure, so it can run after a deploy or in CI.
+ * rejected, a replay refuses writes, and the live-run route is present and
+ * refuses a non-JSON probe without spending a run. It exits non-zero on the
+ * first failure, so it can run after a deploy or in CI.
  */
 
 import { createPublicKey } from "node:crypto"
@@ -98,6 +99,22 @@ const envelope: MandateEnvelope = {
 }
 pass("snapshot", `${state.body.mode} mode, mandate ${mandate.claims.id.slice(0, 8)}`)
 
+const live = state.body.live
+if (live) {
+  if (!Number.isInteger(live.cap) || live.cap < 1) {
+    fail("live config", `expected a positive daily cap, got ${live.cap}`)
+  }
+  if (!Number.isInteger(live.remaining) || live.remaining < 0 || live.remaining > live.cap) {
+    fail("live config", `remaining ${live.remaining} is outside 0..${live.cap}`)
+  }
+  pass(
+    "live config",
+    `${live.enabled ? "enabled" : "disabled"}, ${live.remaining}/${live.cap} runs left today`,
+  )
+} else {
+  console.log("  SKIP  live config             live runs are off")
+}
+
 const key = await call<PublicKeyReply>("/api/mandate/public-key")
 if (key.status !== 200 || key.body.ok !== true) {
   fail("public key", `expected 200 { ok: true }, got ${key.status}`)
@@ -174,5 +191,17 @@ if (state.body.replay) {
 } else {
   console.log("  SKIP  read-only replay         not a replay")
 }
+
+// Zero-cost probe: the route must exist and refuse a non-JSON POST before it
+// can spend a run. Never send JSON here; that would consume the daily budget.
+const liveProbe = await call<{ ok?: boolean; error?: string }>("/api/demo/live-run", {
+  method: "POST",
+  headers: { "content-type": "text/plain" },
+  body: "probe",
+})
+if (liveProbe.status !== 415) {
+  fail("live route", `expected 415 for a non-JSON POST, got ${liveProbe.status}`)
+}
+pass("live route", "non-JSON POST refused with 415")
 
 console.log(`\n${passed} checks passed. The demo proves what it claims.\n`)

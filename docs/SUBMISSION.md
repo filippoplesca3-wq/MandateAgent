@@ -232,8 +232,9 @@ Screenshots for the Devpost gallery are in `docs/screenshots/`:
 
    Or run the whole audit in one command:
    `npm run check:demo -- https://agent-mandate.onrender.com`. It checks health,
-   the published key, both verification paths, tamper rejection and the read-only
-   write refusal, and exits non-zero on any failure.
+   the published key, both verification paths, tamper rejection, the read-only
+   write refusal and the live-run route (without spending a run), and exits
+   non-zero on any failure.
 
    For a check that does not trust the server at all, run
    `npm run verify:recording`. It verifies the Ed25519 signature in

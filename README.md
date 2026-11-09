@@ -520,7 +520,8 @@ npm run check:demo -- https://agent-mandate.onrender.com
 ```
 
 It checks health, the published Ed25519 key, stored and posted verification,
-tamper rejection and read-only writes, then exits non-zero if any claim fails.
+tamper rejection, read-only writes and the live-run route, then exits non-zero if
+any claim fails.
 
 To verify the recording itself without trusting the server at all:
 
