@@ -1,6 +1,8 @@
 services:
   - type: web
-    name: agent-mandate
+    # The plain "agent-mandate" subdomain is taken by another Render user, so
+    # the demo uses a distinct name. Change this if you deploy under your own.
+    name: agent-mandate-paypal
     runtime: node
     plan: free
     buildCommand: npm ci --include=dev && npm run build

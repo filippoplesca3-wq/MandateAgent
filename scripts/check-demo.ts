@@ -3,7 +3,7 @@
  *
  * Usage:
  *   npm run check:demo
- *   npm run check:demo -- https://agent-mandate.onrender.com
+ *   npm run check:demo -- https://agent-mandate-paypal.onrender.com
  *
  * The script checks the claims a judge would otherwise have to take on trust:
  * the mandate is signed, the published key verifies it, a widened copy is

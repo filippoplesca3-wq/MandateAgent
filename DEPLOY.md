@@ -35,13 +35,13 @@ npm run demo
 2. In [Render](https://render.com), choose **New → Blueprint**.
 3. Connect the repository and apply the blueprint.
 4. Wait for the build. Render gives you a URL such as
-   `https://agent-mandate.onrender.com`.
+   `https://agent-mandate-paypal.onrender.com`.
 5. Open the URL. Free web services sleep after inactivity; the first request
    can take 30–60 seconds to wake the instance. That is expected.
 6. Run the audit against the deployed URL:
 
    ```bash
-   npm run check:demo -- https://agent-mandate.onrender.com
+   npm run check:demo -- https://agent-mandate-paypal.onrender.com
    ```
 
    It checks the published key, both verification paths, tamper rejection and
@@ -170,7 +170,7 @@ the repository variable `DEMO_URL` is set:
 1. Open the repository on GitHub.
 2. **Settings → Secrets and variables → Actions → Variables → New variable**.
 3. Name it `DEMO_URL` and use the Render URL without a trailing slash, for
-   example `https://agent-mandate.onrender.com`.
+   example `https://agent-mandate-paypal.onrender.com`.
 
 Render's free tier includes 750 instance hours per month; one always-on service
 uses about 730. Remove the variable or disable the workflow if you run other

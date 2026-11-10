@@ -177,7 +177,7 @@ MCP, Docker, Render.
 
 | | |
 | --- | --- |
-| **Hosted demo (replay + optional live run)** | `https://agent-mandate.onrender.com` — **replace after deploy** |
+| **Hosted demo (replay + optional live run)** | `https://agent-mandate-paypal.onrender.com` — **replace after deploy** |
 | **Video (under 3 minutes)** | `https://youtu.be/...` — **replace after upload** |
 | **Source code** | https://github.com/filippoplesca3-wq/MandateAgent |
 | **License** | MIT |
@@ -226,12 +226,12 @@ Screenshots for the Devpost gallery are in `docs/screenshots/`:
    `signatureValid: false`:
 
    ```bash
-   curl https://agent-mandate.onrender.com/api/mandate/public-key
-   curl https://agent-mandate.onrender.com/api/mandates/<id>/verify
+   curl https://agent-mandate-paypal.onrender.com/api/mandate/public-key
+   curl https://agent-mandate-paypal.onrender.com/api/mandates/<id>/verify
    ```
 
    Or run the whole audit in one command:
-   `npm run check:demo -- https://agent-mandate.onrender.com`. It checks health,
+   `npm run check:demo -- https://agent-mandate-paypal.onrender.com`. It checks health,
    the published key, both verification paths, tamper rejection, the read-only
    write refusal and the live-run route (without spending a run), and exits
    non-zero on any failure.

@@ -26,7 +26,7 @@ approved by a human, $99 denied, and every decision in the ledger.*
 
 | | |
 | --- | --- |
-| **Live demo** | https://agent-mandate.onrender.com *(replace after deploy)* |
+| **Live demo** | https://agent-mandate-paypal.onrender.com *(replace after deploy)* |
 | **Video (under 3 min)** | https://youtu.be/... *(placeholder — public YouTube link)* |
 | **Source** | https://github.com/filippoplesca3-wq/MandateAgent |
 | **License** | MIT |
@@ -516,7 +516,7 @@ mandate on screen with the key it was recorded with.*
 Audit any running demo, local or hosted, with one command:
 
 ```bash
-npm run check:demo -- https://agent-mandate.onrender.com
+npm run check:demo -- https://agent-mandate-paypal.onrender.com
 ```
 
 It checks health, the published Ed25519 key, stored and posted verification,

@@ -1,7 +1,7 @@
 name: Warm demo
 
 # Render's free tier sleeps after inactivity. Set the repository variable
-# DEMO_URL (for example https://agent-mandate.onrender.com) to keep the demo
+# DEMO_URL (for example https://agent-mandate-paypal.onrender.com) to keep the demo
 # awake while judging. Without the variable this workflow does nothing.
 on:
   schedule:
