@@ -37,6 +37,8 @@ export interface LiveRunInput {
   apiKey: string
   model?: string
   maxSteps?: number
+  /** What the visitor asked for. Falls back to the recorded demo task. */
+  task?: string
 }
 
 export interface LiveRunOutput {
@@ -89,7 +91,7 @@ export async function runLiveDemo(input: LiveRunInput): Promise<LiveRunOutput> {
   const run = await runAgent({
     tools: toAgentTools(tools),
     mandateBrief: describeMandate(store, mandateId),
-    task: DEMO_TASK,
+    task: input.task?.trim() || DEMO_TASK,
     apiKey: input.apiKey,
     ...(input.model ? { model: input.model } : {}),
     ...(input.maxSteps ? { maxSteps: input.maxSteps } : {}),

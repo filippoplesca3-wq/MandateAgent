@@ -1408,6 +1408,51 @@ button.chip:focus-visible {
   margin: 0;
 }
 
+.live-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.live-prompt-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+}
+
+.live-presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.live-presets .muted {
+  font-size: 11px;
+}
+
+.live-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.live-actions .muted {
+  font-size: 11px;
+}
+
+.live-asked {
+  margin: 0;
+  padding: 9px 12px;
+  border-left: 2px solid rgba(79, 140, 255, 0.5);
+  background: rgba(79, 140, 255, 0.05);
+  border-radius: 0 8px 8px 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
 .live-summary {
   display: flex;
   align-items: stretch;

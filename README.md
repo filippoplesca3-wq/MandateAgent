@@ -5,7 +5,7 @@
 [![CI](https://github.com/filippoplesca3-wq/MandateAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/filippoplesca3-wq/MandateAgent/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/filippoplesca3-wq/MandateAgent?label=release)](https://github.com/filippoplesca3-wq/MandateAgent/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Tests: 206](https://img.shields.io/badge/tests-206%20passing-brightgreen.svg)](#tests)
+[![Tests: 209](https://img.shields.io/badge/tests-209%20passing-brightgreen.svg)](#tests)
 ![PayPal AI Hackathon 2026](https://img.shields.io/badge/PayPal%20AI%20Hackathon-2026-003087)
 
 Agent Mandate lets an AI agent buy things for a person without ever holding the
@@ -49,7 +49,7 @@ approved by a human, $99 denied, and every decision in the ledger.*
 5. **Verify the mandate.** Press **Verify** next to the signature. The console
    shows `SIGNATURE VALID · Ed25519 · recorded key`: the mandate on screen
    checks out against the key the recording was signed with.
-6. **Run the proof.** `npm ci && npm test` (206 tests),
+6. **Run the proof.** `npm ci && npm test` (209 tests),
    `npm run verify:recording` (offline Ed25519 check, no server),
    `npm run check:demo -- <url>` (audits the demo's own claims) and
    `npm run check:live` (real PayPal sandbox + Gemini).
@@ -100,7 +100,7 @@ Vitest · MCP
 
 | Criterion | Where to look |
 | --- | --- |
-| **Technological implementation** | 206 tests across 19 files, including concurrent approvals, budget races, signature forgery, tampered claims, revoked and expired mandates, CORS, rate limits, request validation and ledger accounting. `npm test`, `npm run typecheck`, `npm run build`. |
+| **Technological implementation** | 209 tests across 19 files, including concurrent approvals, budget races, signature forgery, tampered claims, revoked and expired mandates, CORS, rate limits, request validation and ledger accounting. `npm test`, `npm run typecheck`, `npm run build`. |
 | **Use of PayPal** | Real Agent Toolkit tools, sandbox order creation and capture, JS SDK v6 checkout, sandbox decline path, signature-verified webhooks, public-key mandate verification. See "How PayPal is used" and "Live mode check". |
 | **Design** | One deterministic core, swappable clients. The guard resolves amounts instead of trusting the model; the ledger records refusals as evidence; the console shows the mandate, run timeline, decisions and ledger live. |
 | **Potential impact** | Gives buyers a safe way to delegate spending and gives merchants a verifiable signal that an agent is authorised. The same mandate artefact works for procurement, subscriptions and expense limits. |
@@ -353,7 +353,9 @@ run panel. It is used for that single request and never stored or logged.
 
 A recording is a fallback, not the whole demo. When the operator sets
 `DEMO_LIVE=1` and a server-side Gemini key, the banner also offers **Run live
-with Gemini**. That button calls `POST /api/demo/live-run` and the server:
+with Gemini**. The dialog asks what to buy: type a task or pick a preset, then
+press **Ask Gemini to run it**. That calls `POST /api/demo/live-run` with
+`{ "task": "…" }`, and the server:
 
 - creates a fresh in-memory `Store`, signing key and demo mandate for that one
   request — the recording, its budget and its approvals are untouched;
@@ -361,6 +363,11 @@ with Gemini**. That button calls `POST /api/demo/live-run` and the server:
   credentials or money are involved;
 - returns the run, the resulting snapshot and a server-computed Ed25519 check
   of the fresh mandate.
+
+The task is capped at 600 characters and the server trims it. Presets cover an
+allowed purchase, one that needs human approval, one above the per-transaction
+ceiling and one at a merchant outside the allowlist, so a judge can see the
+guard refuse a request they wrote themselves.
 
 The Gemini key never reaches the browser and is never included in a response.
 Cost is bounded three ways: `DEMO_LIVE_DAILY_CAP` runs per UTC day (default 10),
@@ -589,7 +596,7 @@ about real agents.
 ## Tests
 
 ```bash
-npm test          # 206 tests, 19 files
+npm test          # 209 tests, 19 files
 npm run typecheck
 npm run build
 npm run verify    # test + build

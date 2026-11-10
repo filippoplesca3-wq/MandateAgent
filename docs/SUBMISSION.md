@@ -50,9 +50,9 @@ happens:
 
 The console shows the mandate, the live run, the approval queue, the audit ledger
 and a seller-side trust score. A hosted replay demonstrates the whole flow with
-no credentials, and a judge can press **Run live with Gemini** to watch the real
-model run against simulated PayPal. A local live path creates and captures real
-PayPal **sandbox** orders.
+no credentials, and a judge can press **Run live with Gemini** to write a task
+and watch the real model run against simulated PayPal. A local live path creates
+and captures real PayPal **sandbox** orders.
 
 ## How we built it
 
@@ -125,10 +125,11 @@ model.
 - **Trusting the model's numbers.** The model can quote any `itemTotal`. The
   guard recomputes the total and reads order amounts back from PayPal instead.
 - **Live vs. hosted.** The hosted build defaults to a recording so it works with
-  no credentials, but judges can press **Run live with Gemini**: a real model
-  run against simulated PayPal, in a throwaway store, capped per day and per
-  visitor. The server holds the key; the browser never sees it. Real PayPal
-  sandbox checkout stays local and is shown in the video.
+  no credentials, but judges can press **Run live with Gemini**, write what to
+  buy and watch the real model plan it: a real model run against simulated
+  PayPal, in a throwaway store, capped per day and per visitor. The server holds
+  the key; the browser never sees it. Real PayPal sandbox checkout stays local
+  and is shown in the video.
 - **Free-tier limits.** Gemini's free tier caps requests per day per model, so
   the agent falls back across models, the hosted live run is capped, and the
   recording remains the zero-cost fallback.
@@ -136,7 +137,7 @@ model.
 ## Accomplishments that we're proud of
 
 - A deterministic enforcement layer that a manipulated model cannot widen.
-- 206 tests across 19 files, covering signature forgery, tampered claims, revoked
+- 209 tests across 19 files, covering signature forgery, tampered claims, revoked
   and expired mandates, concurrent approvals, budget races, ledger accounting,
   CORS, rate limits and request validation.
 - A real PayPal sandbox path: order creation, browser approval, capture, declines
@@ -208,11 +209,15 @@ Screenshots for the Devpost gallery are in `docs/screenshots/`:
    order is escalated, a $99 payment to `sketchy-deals` is denied, and every
    decision lands in the audit ledger.
 3. Press **Run live with Gemini** in the banner (shown when the deployment has a
-   server-side key). This runs the real model now, against simulated PayPal, in
-   a fresh store with a fresh mandate. The dialog shows the model's tool calls,
-   the $99 denial, the resulting budget and a server-computed signature check.
-   Nothing it does changes the recording, and no money can move. Runs are capped
-   per day and per visitor; a `429` explains which limit was hit.
+   server-side key). Type what to buy, or pick a preset, and press **Ask Gemini
+   to run it**. This runs the real model now, against simulated PayPal, in a
+   fresh store with a fresh mandate. The dialog shows the task you asked for, the
+   model's tool calls, the resulting budget and a server-computed signature
+   check. The $75 preset is refused above the per-transaction ceiling; the
+   `sketchy-deals` preset is refused by the merchant allowlist; the $45 preset is
+   parked for human approval. Nothing it does changes the recording, and no money
+   can move. Runs are capped per day and per visitor; a `429` explains which
+   limit was hit.
 4. Use the **Test a payment** presets. The $12, $45 and $200 presets run a live
    dry-run policy check against the pre-seeded mandate. The **$99 ->
    sketchy-deals (injection)** preset is a deterministic, scripted attack; on

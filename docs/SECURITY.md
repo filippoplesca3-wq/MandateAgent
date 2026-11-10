@@ -37,7 +37,7 @@ them, and where the evidence lives.
 | 19 | A failed capture still consumes budget | The reservation is released on exception or error result; only a successful call confirms it | `tests/guard.test.ts` — "does not commit budget twice when PayPal rejects a capture"; `tests/reservation.test.ts` — release |
 | 20 | The ledger disagrees with the spend counter | The invariant `spendToDate == sum(committed ledger entries)` is asserted after every outcome | `tests/guard.test.ts` — budget accounting |
 | 21 | A hostile page frames the console, sniffs response types or reads the referrer | `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` on every response; `x-powered-by` removed | `tests/http-hardening.test.ts` — hardening headers |
-| 22 | A public live run burns Gemini quota or mutates the recorded demo | Every run gets a fresh in-memory store, signing key and mandate; PayPal is simulated; a global daily cap, a per-IP cooldown and a single in-flight slot bound cost; the endpoint is off without a server-side key | `src/server/live-demo.ts`; `src/server/app.ts` — live-run caps; `tests/live-demo.test.ts` — isolation, cap, cooldown, in-flight, key leak |
+| 22 | A public live run burns Gemini quota or mutates the recorded demo | Every run gets a fresh in-memory store, signing key and mandate; PayPal is simulated; the visitor's task is trimmed and capped at 600 characters; a global daily cap, a per-IP cooldown and a single in-flight slot bound cost; the endpoint is off without a server-side key | `src/server/live-demo.ts`; `src/server/app.ts` — live-run caps; `tests/live-demo.test.ts` — isolation, cap, cooldown, in-flight, task validation, key leak |
 
 ## What is not protected
 
@@ -85,7 +85,7 @@ rather than a public issue.
 
 ```bash
 npm ci
-npm test              # 206 tests, 19 files
+npm test              # 209 tests, 19 files
 npm run typecheck
 npm run build
 npm run check:live    # real PayPal sandbox + Gemini, sandbox only

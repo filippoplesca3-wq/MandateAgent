@@ -82,6 +82,16 @@ const agentRunBody = z
   })
   .passthrough()
 
+/**
+ * A live run accepts the visitor's task. The cap keeps one request from
+ * becoming a novel: the model gets a sentence or two, not a prompt dump.
+ */
+const liveRunBody = z
+  .object({
+    task: z.string().max(600).optional(),
+  })
+  .passthrough()
+
 const evaluateBody = z
   .object({
     action: z.string().min(1),
@@ -454,7 +464,7 @@ export function createApp(config: ServerConfig): ServerHandle {
    * a live run cannot spend the recorded budget or leave approvals behind, and
    * a deployment without a server-side key simply does not expose the feature.
    */
-  app.post("/api/demo/live-run", rateLimit, (req, res) => {
+  app.post("/api/demo/live-run", rateLimit, (req, res, next) => {
     // A JSON content type is required so a cross-site HTML form cannot burn the
     // daily budget with a drive-by POST; JSON fetches from another origin hit
     // the CORS preflight instead.
@@ -472,6 +482,12 @@ export function createApp(config: ServerConfig): ServerHandle {
       })
       return
     }
+
+    // Validate before any budget is spent: a rejected body must not cost the
+    // visitor their daily run.
+    const body = validateBody(liveRunBody, req.body, next)
+    if (!body) return
+    const task = body.task?.trim()
 
     if (liveRemaining() <= 0) {
       res.status(429).json({
@@ -516,6 +532,7 @@ export function createApp(config: ServerConfig): ServerHandle {
       apiKey: live.apiKey,
       ...(live.model ? { model: live.model } : {}),
       ...(live.maxSteps ? { maxSteps: live.maxSteps } : {}),
+      ...(task ? { task } : {}),
     })
       .then((result) => {
         res.json({ ok: true, live: true, ...result })

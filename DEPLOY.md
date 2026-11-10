@@ -77,10 +77,11 @@ an "issue mandate" step.
 
 - **Works:** playback of the recorded run, the mandate view, the dry-run
   "Test a payment" presets, the audit ledger and the seller view.
-- **Works when enabled:** **Run live with Gemini**. Each press runs the real
-  model against simulated PayPal in a fresh store with a fresh mandate and
-  signing key. It never touches the recording and cannot move money. Cost is
-  bounded by a global daily cap, a per-IP cooldown and one in-flight run.
+- **Works when enabled:** **Run live with Gemini**. Type a task or pick a preset;
+  each run uses the real model against simulated PayPal in a fresh store with a
+  fresh mandate and signing key. It never touches the recording and cannot move
+  money. Cost is bounded by a global daily cap, a per-IP cooldown and one
+  in-flight run.
 - **Disabled:** issue, revoke and approve. The UI disables those buttons, and
   the API refuses writes with `409` because a recording must not be edited. That
   is why `ADMIN_TOKEN` is deliberately not set on the public blueprint.
@@ -103,7 +104,8 @@ To exercise issue / revoke / approve or the live sandbox path, run locally — s
    blueprint.
 4. Redeploy. The replay banner now shows **Run live with Gemini** and the
    remaining runs for the day.
-5. Verify with `npm run check:demo -- <url>` and press the button once.
+5. Verify with `npm run check:demo -- <url>`, then open the dialog, type a task
+   and press **Ask Gemini to run it** once.
 
 The key never reaches the browser. If you remove it or set `DEMO_LIVE=0`, the
 button disappears and the endpoint returns `503`; the recording still works.

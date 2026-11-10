@@ -31,7 +31,7 @@ recording plus **Run live with Gemini** for real-time model evidence.
 | 1:30–1:48 | **Audit ledger** | Scroll the ledger; open one row's check trail | "This is the audit trail. Allowed, escalated and denied calls are all recorded with the amount, merchant and reason. A refusal is evidence, not an error." |
 | 1:48–2:05 | Terminal | `curl` the public key, then `GET /api/mandates/<id>/verify` | "Anyone can verify the mandate with only the issuer's public key — no shared secret. Tamper with the claims and verification fails; revoke it and it reports revoked." |
 | 2:05–2:20 | **Live sandbox payment** panel + PayPal window | Show the sandbox client id and `PAYPAL_ENVIRONMENT=SANDBOX`; create the $2 order; show the payer approval | "This is real PayPal sandbox money. The server creates an order through the same guard, the payer approves it in the browser with the PayPal JS SDK, and the capture moves the mandate's budget. No live money, and the hosted demo's key stays server-side." |
-| 2:20–2:30 | Hosted URL + repo | Show the demo URL, press **Run live with Gemini**, then the GitHub repo | "The hosted demo can replay this run for free, or run the real model live on demand against simulated PayPal. The repo has the code, the tests and a one-command live check. Agent Mandate: let agents buy, not anything." |
+| 2:20–2:30 | Hosted URL + repo | Show the demo URL, open **Run live with Gemini**, type a task, then the GitHub repo | "The hosted demo can replay this run for free, or take a task you type and run the real model live against simulated PayPal. The repo has the code, the tests and a one-command live check. Agent Mandate: let agents buy, not anything." |
 
 ## If you run long
 

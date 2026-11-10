@@ -6,7 +6,7 @@ import { createSimulatedTools } from "../src/paypal/simulated.js"
 import type { ToolExecOptions, ToolSet } from "../src/paypal/tool-types.js"
 import { createApp, type LiveDemoConfig } from "../src/server/app.js"
 import { AGENT_ID, MERCHANT } from "../src/server/demo.js"
-import { createLiveRun, type LiveRunOutput } from "../src/server/live-demo.js"
+import { createLiveRun, type LiveRunInput, type LiveRunOutput } from "../src/server/live-demo.js"
 import { buildSnapshot } from "../src/server/snapshot.js"
 import { TEST_KEY } from "./helpers.js"
 
@@ -106,6 +106,13 @@ const post = (base: string) =>
     body: JSON.stringify({}),
   })
 
+const postTask = (base: string, task: unknown) =>
+  fetch(`${base}/api/demo/live-run`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ task }),
+  })
+
 describe("live run — isolation", () => {
   it("gives every run a fresh mandate, signing key and ledger", () => {
     const first = createLiveRun()
@@ -163,6 +170,66 @@ describe("live run — endpoint", () => {
     expect(body.publicKey.length).toBeGreaterThan(40)
     expect(body.snapshot.mandate?.claims.id).toBeTruthy()
     expect(body.snapshot.summary.denied).toBe(0)
+  })
+
+  it("passes the visitor's task to the run, trimmed", async () => {
+    const seen: LiveRunInput[] = []
+    harness = await start({
+      apiKey: SECRET_KEY,
+      dailyCap: 5,
+      cooldownMs: 0,
+      run: async (input) => {
+        seen.push(input)
+        return fakeOutput()
+      },
+    })
+
+    const response = await postTask(harness.base, "  Buy a red stapler from acme-supplies.  ")
+    expect(response.status).toBe(200)
+    expect(seen[0]?.task).toBe("Buy a red stapler from acme-supplies.")
+    expect(seen[0]?.apiKey).toBe(SECRET_KEY)
+  })
+
+  it("leaves the task unset when the visitor sends none or only spaces", async () => {
+    const seen: LiveRunInput[] = []
+    harness = await start({
+      apiKey: SECRET_KEY,
+      dailyCap: 5,
+      cooldownMs: 0,
+      run: async (input) => {
+        seen.push(input)
+        return fakeOutput()
+      },
+    })
+
+    expect((await post(harness.base)).status).toBe(200)
+    expect((await postTask(harness.base, "   ")).status).toBe(200)
+    expect(seen[0]?.task).toBeUndefined()
+    expect(seen[1]?.task).toBeUndefined()
+  })
+
+  it("rejects an overlong task without spending the daily budget", async () => {
+    let calls = 0
+    harness = await start({
+      apiKey: SECRET_KEY,
+      dailyCap: 5,
+      cooldownMs: 0,
+      run: async () => {
+        calls += 1
+        return fakeOutput()
+      },
+    })
+
+    const response = await postTask(harness.base, "x".repeat(601))
+    const body = (await response.json()) as { ok: boolean; error: string }
+    expect(response.status).toBe(400)
+    expect(body.error).toContain("task")
+    expect(calls).toBe(0)
+
+    const state = (await (await fetch(`${harness.base}/api/state`)).json()) as {
+      live: { remaining: number }
+    }
+    expect(state.live.remaining).toBe(5)
   })
 
   it("never includes the server-side key in a response or the state snapshot", async () => {

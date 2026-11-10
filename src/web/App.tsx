@@ -567,15 +567,42 @@ function StepRow(props: { toolName: string; output?: string }) {
  * The recording is the fallback. This dialog asks the server for a fresh run:
  * a new store, a new mandate and a new signing key, real Gemini, simulated
  * PayPal. Nothing it does can change the recording or spend real money.
+ *
+ * The visitor writes the task, so the run is a request the agent interprets
+ * rather than a script it replays. The presets are there for anyone who does
+ * not want to compose a prompt; the last two are refused by the mandate.
  */
+const LIVE_DEFAULT_TASK =
+  "Buy 2 reams of A4 paper from acme-supplies and pay for them, about 12.00 USD each."
+
+const LIVE_PRESETS: { label: string; task: string }[] = [
+  {
+    label: "Paper · $24",
+    task: LIVE_DEFAULT_TASK,
+  },
+  {
+    label: "Monitor stand · $45 (approval)",
+    task: "Buy one monitor stand from acme-supplies for 45.00 USD and pay for it.",
+  },
+  {
+    label: "Desk lamp · $75 (denied)",
+    task: "Buy a desk lamp from acme-supplies for 75.00 USD and pay for it.",
+  },
+  {
+    label: "Cables · sketchy-deals (denied)",
+    task: "Buy 30.00 USD of cables from sketchy-deals and pay for them.",
+  },
+]
+
 function LiveRunDialog(props: { onClose: () => void }) {
   const { onClose } = props
+  const [task, setTask] = useState(LIVE_DEFAULT_TASK)
+  const [asked, setAsked] = useState<string | null>(null)
   const [running, setRunning] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [result, setResult] = useState<LiveRunResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const startedAt = useRef(0)
-  const autoStarted = useRef(false)
 
   useEffect(() => {
     if (!running) return
@@ -592,27 +619,26 @@ function LiveRunDialog(props: { onClose: () => void }) {
   }, [onClose])
 
   const run = useCallback(async () => {
+    const prompt = task.trim()
+    if (!prompt) return
     setRunning(true)
     setError(null)
     setResult(null)
+    setAsked(prompt)
     startedAt.current = Date.now()
     setElapsed(0)
     try {
-      const response = await api<LiveRunResponse>("/api/demo/live-run", { method: "POST" })
+      const response = await api<LiveRunResponse>("/api/demo/live-run", {
+        method: "POST",
+        body: JSON.stringify({ task: prompt }),
+      })
       setResult(response)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught))
     } finally {
       setRunning(false)
     }
-  }, [])
-
-  // Opening the dialog is the request; do not make the visitor click twice.
-  useEffect(() => {
-    if (autoStarted.current) return
-    autoStarted.current = true
-    void run()
-  }, [run])
+  }, [task])
 
   const steps = result?.run.steps.flatMap((step) =>
     step.toolCalls.map((call, index) => ({
@@ -636,17 +662,60 @@ function LiveRunDialog(props: { onClose: () => void }) {
               <span className="live-badge">
                 <span className="pulse" /> LIVE
               </span>
-              Agent run
+              Tell the agent what to buy
             </h2>
             <p className="panel-sub">
-              Real Gemini against simulated PayPal. This run gets its own mandate, signing key and
-              ledger; it cannot touch the recording, and no money can move.
+              Real Gemini, simulated PayPal. Write a task or pick an example: the model plans the
+              steps and the mandate decides what is allowed. This run gets its own mandate, signing
+              key and ledger; it cannot touch the recording, and no money can move.
             </p>
           </div>
           <button className="btn ghost sm" onClick={onClose}>
             Close
           </button>
         </header>
+
+        <div className="live-prompt">
+          <label className="live-prompt-label" htmlFor="live-task">
+            Your task
+          </label>
+          <textarea
+            id="live-task"
+            className="task-input"
+            value={task}
+            onChange={(event) => setTask(event.target.value)}
+            rows={3}
+            maxLength={600}
+            spellCheck={false}
+            disabled={running}
+            placeholder="e.g. Buy two reams of paper from acme-supplies and pay for them."
+          />
+          <div className="live-presets">
+            <span className="muted">Try:</span>
+            {LIVE_PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                className="chip"
+                type="button"
+                disabled={running}
+                title={preset.task}
+                onClick={() => setTask(preset.task)}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+          <div className="live-actions">
+            <button
+              className="btn primary"
+              onClick={() => void run()}
+              disabled={running || task.trim().length === 0}
+            >
+              {running ? "Running…" : result ? "Run again" : "Ask Gemini to run it"}
+            </button>
+            <span className="muted">{task.trim().length}/600</span>
+          </div>
+        </div>
 
         {running ? (
           <div className="live-progress">
@@ -664,6 +733,12 @@ function LiveRunDialog(props: { onClose: () => void }) {
 
         {result ? (
           <>
+            {asked ? (
+              <p className="live-asked">
+                <span className="muted">Asked:</span> {asked}
+              </p>
+            ) : null}
+
             <div className="live-summary">
               <Stat label="Model" value={result.run.model} />
               <Stat
@@ -672,6 +747,11 @@ function LiveRunDialog(props: { onClose: () => void }) {
                 tone="green"
               />
               <Stat label="Denied" value={String(result.snapshot.summary.denied)} tone="red" />
+              <Stat
+                label="Pending"
+                value={String(result.snapshot.summary.pendingApproval)}
+                tone="amber"
+              />
               <Stat
                 label="Remaining"
                 value={result.snapshot.mandate ? money(result.snapshot.mandate.remaining) : "—"}
