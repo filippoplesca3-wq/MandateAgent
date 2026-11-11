@@ -23,10 +23,6 @@ services:
         value: "1"
       - key: DEMO_LIVE_DAILY_CAP
         value: "10"
-      - key: DEMO_LIVE_COOLDOWN_SECONDS
-        value: "120"
-      - key: DEMO_CHAT_MAX_TURNS
-        value: "4"
       - key: GOOGLE_GENERATIVE_AI_API_KEY
         sync: false
       - key: NODE_VERSION

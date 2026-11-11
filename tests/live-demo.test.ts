@@ -157,7 +157,7 @@ describe("live run — endpoint", () => {
   })
 
   it("runs once and returns the run, snapshot and verification", async () => {
-    harness = await start({ apiKey: SECRET_KEY, dailyCap: 5, cooldownMs: 0, run: async () => fakeOutput() })
+    harness = await start({ apiKey: SECRET_KEY, dailyCap: 5, run: async () => fakeOutput() })
     const response = await post(harness.base)
     const body = (await response.json()) as LiveRunOutput & { ok: boolean; live: boolean }
 
@@ -177,7 +177,6 @@ describe("live run — endpoint", () => {
     harness = await start({
       apiKey: SECRET_KEY,
       dailyCap: 5,
-      cooldownMs: 0,
       run: async (input) => {
         seen.push(input)
         return fakeOutput()
@@ -195,7 +194,6 @@ describe("live run — endpoint", () => {
     harness = await start({
       apiKey: SECRET_KEY,
       dailyCap: 5,
-      cooldownMs: 0,
       run: async (input) => {
         seen.push(input)
         return fakeOutput()
@@ -213,7 +211,6 @@ describe("live run — endpoint", () => {
     harness = await start({
       apiKey: SECRET_KEY,
       dailyCap: 5,
-      cooldownMs: 0,
       run: async () => {
         calls += 1
         return fakeOutput()
@@ -233,7 +230,7 @@ describe("live run — endpoint", () => {
   })
 
   it("never includes the server-side key in a response or the state snapshot", async () => {
-    harness = await start({ apiKey: SECRET_KEY, dailyCap: 5, cooldownMs: 0, run: async () => fakeOutput() })
+    harness = await start({ apiKey: SECRET_KEY, dailyCap: 5, run: async () => fakeOutput() })
 
     const runBody = await (await post(harness.base)).text()
     const stateBody = await (await fetch(`${harness.base}/api/state`)).text()
@@ -244,7 +241,7 @@ describe("live run — endpoint", () => {
   })
 
   it("refuses more runs once the daily cap is spent", async () => {
-    harness = await start({ apiKey: SECRET_KEY, dailyCap: 1, cooldownMs: 0, run: async () => fakeOutput() })
+    harness = await start({ apiKey: SECRET_KEY, dailyCap: 1, run: async () => fakeOutput() })
 
     const first = await post(harness.base)
     expect(first.status).toBe(200)
@@ -255,21 +252,20 @@ describe("live run — endpoint", () => {
     expect(body.error).toContain("budget")
   })
 
-  it("enforces a cooldown per address and advertises Retry-After", async () => {
+  it("allows another run immediately, with no cooldown", async () => {
     harness = await start({
       apiKey: SECRET_KEY,
       dailyCap: 5,
-      cooldownMs: 60_000,
       run: async () => fakeOutput(),
     })
 
     expect((await post(harness.base)).status).toBe(200)
+    expect((await post(harness.base)).status).toBe(200)
 
-    const second = await post(harness.base)
-    const body = (await second.json()) as { ok: boolean; error: string }
-    expect(second.status).toBe(429)
-    expect(second.headers.get("retry-after")).toBeTruthy()
-    expect(body.error).toContain("Try again in")
+    const state = (await (await fetch(`${harness.base}/api/state`)).json()) as {
+      live: { remaining: number }
+    }
+    expect(state.live.remaining).toBe(3)
   })
 
   it("allows only one run in flight", async () => {
@@ -285,7 +281,6 @@ describe("live run — endpoint", () => {
     harness = await start({
       apiKey: SECRET_KEY,
       dailyCap: 5,
-      cooldownMs: 0,
       run: () => {
         started()
         return gate
@@ -305,7 +300,7 @@ describe("live run — endpoint", () => {
   })
 
   it("refuses a non-JSON POST so a cross-site form cannot burn the budget", async () => {
-    harness = await start({ apiKey: SECRET_KEY, dailyCap: 5, cooldownMs: 0, run: async () => fakeOutput() })
+    harness = await start({ apiKey: SECRET_KEY, dailyCap: 5, run: async () => fakeOutput() })
 
     const response = await fetch(`${harness.base}/api/demo/live-run`, {
       method: "POST",
@@ -320,7 +315,6 @@ describe("live run — endpoint", () => {
     harness = await start({
       apiKey: SECRET_KEY,
       dailyCap: 5,
-      cooldownMs: 0,
       run: async () => {
         throw new Error("model quota exhausted")
       },

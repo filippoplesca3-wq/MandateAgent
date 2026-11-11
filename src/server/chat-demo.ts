@@ -1,11 +1,11 @@
 /**
  * A live, multi-turn purchasing chat.
  *
- * The visitor says what they want in their own words. The model may only call
- * `propose_purchase`, which picks an item from a server-side catalog; it never
- * sees a payment tool and never supplies a price. The proposal is a card in the
- * UI. Nothing is paid until the visitor clicks it, and only then does the
- * server run the guarded `create_order` / `pay_order` pair.
+ * The visitor says what they want in their own words. There is no fixed
+ * catalog: the model may call `propose_purchase` with any item name and a price
+ * quote. It never sees a payment tool. The proposal is a card in the UI.
+ * Nothing is paid until the visitor clicks it, and only then does the server
+ * run the guarded `create_order` / `pay_order` pair.
  *
  * Every session gets its own in-memory store, signing key and mandate, so one
  * visitor cannot spend another visitor's budget, leave approvals behind or
@@ -33,101 +33,43 @@ import type { ToolSet } from "../paypal/tool-types.js"
 import { AGENT_ID, MERCHANT, SEED_ORDERS, issueDemoMandate, seedTrust } from "./demo.js"
 import { buildSnapshot, type ServerSnapshot } from "./snapshot.js"
 
-/** The catalog is authoritative. The model can only choose from these ids. */
-const CHAT_ITEM_IDS = [
-  "headset",
-  "paper",
-  "keyboard",
-  "monitor",
-  "cables",
-  "desk-lamp",
-  "standing-desk",
-] as const
+/** The largest quote the tool will even consider. The mandate is much lower. */
+const MAX_QUOTE_USD = 10_000
 
-export type ChatItemId = (typeof CHAT_ITEM_IDS)[number]
+/**
+ * What the model may propose. The name and price are a quote, not an
+ * authority: the guard still checks the amount, merchant and budget, and the
+ * visitor approves the exact quote on the card.
+ */
+const proposalInput = z.object({
+  name: z.string().min(1).max(120).describe("Short name of the item the visitor wants"),
+  amount: z
+    .number()
+    .finite()
+    .positive()
+    .max(MAX_QUOTE_USD)
+    .describe("Price in USD, for example 45.00"),
+  merchant: z
+    .string()
+    .min(1)
+    .max(80)
+    .optional()
+    .describe("Seller name. Use a seller from the mandate unless the visitor names one."),
+  description: z.string().max(200).optional().describe("One short line about the item"),
+})
 
-export interface ChatCatalogItem {
-  id: ChatItemId
-  name: string
-  description: string
-  /** Minor units. */
-  amount: number
-  currency: "USD"
-  merchant: string
-}
-
-export const CHAT_CATALOG: ChatCatalogItem[] = [
-  {
-    id: "headset",
-    name: "Studio headset",
-    description: "Over-ear headset with a boom microphone",
-    amount: 4_500,
-    currency: "USD",
-    merchant: MERCHANT,
-  },
-  {
-    id: "paper",
-    name: "A4 paper (2 reams)",
-    description: "Two reams of 80 gsm A4 paper",
-    amount: 2_400,
-    currency: "USD",
-    merchant: MERCHANT,
-  },
-  {
-    id: "keyboard",
-    name: "Mechanical keyboard",
-    description: "Compact wired mechanical keyboard",
-    amount: 3_000,
-    currency: "USD",
-    merchant: MERCHANT,
-  },
-  {
-    id: "monitor",
-    name: "27-inch monitor",
-    description: "QHD monitor with USB-C input",
-    amount: 7_500,
-    currency: "USD",
-    merchant: MERCHANT,
-  },
-  {
-    id: "cables",
-    name: "USB-C cable pack",
-    description: "Three braided USB-C cables, 1 m",
-    amount: 1_800,
-    currency: "USD",
-    merchant: MERCHANT,
-  },
-  {
-    id: "desk-lamp",
-    name: "Desk lamp",
-    description: "Adjustable LED desk lamp",
-    amount: 2_200,
-    currency: "USD",
-    merchant: MERCHANT,
-  },
-  {
-    id: "standing-desk",
-    name: "Standing desk",
-    description: "Electric height-adjustable desk",
-    amount: 18_000,
-    currency: "USD",
-    merchant: MERCHANT,
-  },
-]
-
-const CHAT_ITEM_ID = z.enum(CHAT_ITEM_IDS)
-
-/** How long a chat session lives. Long enough to talk, short enough to forget. */
-const CHAT_MANDATE_TTL_MS = 60 * 60 * 1_000
+/** How long a chat mandate lives. The session itself does not expire on idle. */
+const CHAT_MANDATE_TTL_MS = 24 * 60 * 60 * 1_000
 
 export type ChatProposalStatus = "proposed" | "purchasing" | "purchased" | "failed"
 
 export interface ChatProposal {
   id: string
-  itemId: ChatItemId
+  /** A server-generated slug of the item name. */
+  itemId: string
   name: string
   description: string
-  /** Minor units, from the catalog. Never from the model or the browser. */
+  /** Minor units, from the model's quote after server-side validation. */
   amount: number
   currency: string
   merchant: string
@@ -141,7 +83,7 @@ export interface ChatProposal {
 
 export interface ChatReceipt {
   proposalId: string
-  itemId: ChatItemId
+  itemId: string
   name: string
   amount: number
   currency: string
@@ -163,7 +105,7 @@ export interface ChatSession {
   /** Conversation as the model sees it. Tool calls are not replayed. */
   messages: ModelMessage[]
   proposals: Map<string, ChatProposal>
-  /** User turns spent. Counted before the model call, so failures still count. */
+  /** User turns so far. Counted before the model call, so failures still count. */
   turns: number
   /** Set by the proposal tool; reset at the start of each turn. */
   lastProposalId: string | null
@@ -229,22 +171,6 @@ export function createChatSession(): ChatSession {
   }
 }
 
-/** Drop sessions nobody came back to. Called before every chat request. */
-export function pruneChatSessions(
-  sessions: Map<string, ChatSession>,
-  ttlMs: number,
-  now = Date.now(),
-): number {
-  let removed = 0
-  for (const [id, session] of sessions) {
-    if (now - session.updatedAt > ttlMs) {
-      sessions.delete(id)
-      removed += 1
-    }
-  }
-  return removed
-}
-
 export function chatSnapshot(session: ChatSession): ServerSnapshot {
   return buildSnapshot(session.store, session.mandateId, {
     mode: "simulated",
@@ -276,30 +202,22 @@ export function chatVerification(session: ChatSession): {
 }
 
 /**
- * The prompt for one turn. The catalog and the mandate are rebuilt every time,
- * so the model always sees the current remaining budget rather than a stale
- * snapshot from session creation.
+ * The prompt for one turn. The mandate is rebuilt every time, so the model
+ * always sees the current remaining budget rather than a stale snapshot.
  */
 export function chatSystemPrompt(session: ChatSession): string {
-  const catalog = CHAT_CATALOG.map(
-    (item) =>
-      `- ${item.id}: ${item.name} — ${formatMoney({ amount: item.amount, currency: item.currency })} — ${item.merchant}`,
-  ).join("\n")
-
-  return `You are the purchasing agent in a live demo of Agent Mandate. You are chatting with a visitor who wants to buy something.
+  return `You are the purchasing agent in a live demo of Agent Mandate. You are chatting with a visitor who wants to buy something. There is no fixed catalog: the visitor can ask for anything.
 
 Your job:
 - Understand what the visitor wants in their own words.
-- Pick the closest item from the catalog and call propose_purchase with its exact id.
-- The catalog price is authoritative. Never invent, negotiate or repeat a different price.
-- The proposal tool does not buy anything. It creates a card the visitor must approve. Never say an item was bought; say it is ready for approval.
+- Call propose_purchase with a short item name, a price in USD, the seller, and a one-line description.
+- If the visitor gives a price or a range, use it. If they do not, estimate a realistic price and say it is an estimate.
+- The price is a quote the visitor must approve. Never claim the purchase is complete before they click the card.
+- The proposal tool does not buy anything. It creates the card.
 - If the visitor asks whether the budget is sufficient, answer from the mandate below, then propose.
-- If no catalog item is close, say so and mention a couple of alternatives. Do not call the tool.
+- The mandate below lists the allowed merchants. Use one of them unless the visitor names another seller; if they do, propose it and let the guard refuse it.
 - Call propose_purchase at most once per reply.
 - Reply in the language the visitor writes in. Keep replies to a few short sentences.
-
-Catalog:
-${catalog}
 
 Mandate:
 ${describeMandate(session.store, session.mandateId)}
@@ -308,28 +226,16 @@ The enforcement layer decides what the mandate permits. The proposal tool return
 }
 
 /**
- * The only tool the chat model gets. It resolves the item and price on the
- * server, previews the policy decision and stores a proposal the UI can show.
+ * The only tool the chat model gets. It validates the quote on the server,
+ * previews the policy decision and stores a proposal the UI can show.
  */
 function createProposalTool(session: ChatSession) {
   const tools: ToolSet = {
     propose_purchase: {
       description:
-        "Propose one catalog item to the visitor. This does not buy anything: it creates a proposal card the visitor must approve. Call it once per reply, only after the visitor says what they want.",
-      parameters: z.object({
-        itemId: CHAT_ITEM_ID.describe("Exact catalog id of the item to propose"),
-      }),
+        "Propose any item the visitor wants. The price is your quote in USD; this does not buy anything, it creates a proposal card the visitor must approve. Call it once per reply, only after the visitor says what they want.",
+      parameters: proposalInput,
       execute: async (args: unknown) => {
-        const input = (args ?? {}) as { itemId?: unknown }
-        const parsed = CHAT_ITEM_ID.safeParse(input.itemId)
-        if (!parsed.success) {
-          return JSON.stringify({
-            ok: false,
-            code: "UNKNOWN_ITEM",
-            reason: `"${String(input.itemId)}" is not in the catalog. Use one of: ${CHAT_ITEM_IDS.join(", ")}.`,
-          })
-        }
-
         if (session.proposedThisTurn > 0) {
           return JSON.stringify({
             ok: false,
@@ -338,31 +244,57 @@ function createProposalTool(session: ChatSession) {
           })
         }
 
-        const item = CHAT_CATALOG.find((candidate) => candidate.id === parsed.data)
-        if (!item) {
+        const parsed = proposalInput.safeParse(args ?? {})
+        if (!parsed.success) {
+          const issue = parsed.error.issues[0]
           return JSON.stringify({
             ok: false,
-            code: "UNKNOWN_ITEM",
-            reason: `No catalog item with id ${parsed.data}.`,
+            code: "INVALID_PROPOSAL",
+            reason: issue
+              ? `${issue.path.join(".") || "proposal"}: ${issue.message}`
+              : "The proposal is not valid.",
           })
         }
 
+        const name = parsed.data.name.trim()
+        if (!name) {
+          return JSON.stringify({
+            ok: false,
+            code: "INVALID_PROPOSAL",
+            reason: "name must not be blank",
+          })
+        }
+
+        // The model quotes dollars; the store works in integer minor units.
+        const amount = Math.round(parsed.data.amount * 100)
+        if (!Number.isSafeInteger(amount) || amount < 1 || amount > MAX_QUOTE_USD * 100) {
+          return JSON.stringify({
+            ok: false,
+            code: "INVALID_AMOUNT",
+            reason: `amount must be between 0.01 and ${MAX_QUOTE_USD} USD`,
+          })
+        }
+
+        const merchant = (parsed.data.merchant ?? "").trim() || MERCHANT
+        const description = (parsed.data.description ?? "").trim()
+        const itemId = slugify(name)
+
         const decision: Decision = session.store.evaluate(session.mandateId, {
           action: "create_order",
-          merchant: item.merchant,
-          amount: item.amount,
-          currency: item.currency,
-          description: item.name,
+          merchant,
+          amount,
+          currency: "USD",
+          description: name,
         })
 
         const proposal: ChatProposal = {
           id: randomUUID(),
-          itemId: item.id,
-          name: item.name,
-          description: item.description,
-          amount: item.amount,
-          currency: item.currency,
-          merchant: item.merchant,
+          itemId,
+          name,
+          description,
+          amount,
+          currency: "USD",
+          merchant,
           allowed: decision.allowed,
           requiresApproval: Boolean(decision.requiresApproval),
           code: decision.code,
@@ -379,11 +311,11 @@ function createProposalTool(session: ChatSession) {
           ok: true,
           proposalId: proposal.id,
           item: {
-            id: item.id,
-            name: item.name,
-            description: item.description,
-            price: formatMoney({ amount: item.amount, currency: item.currency }),
-            merchant: item.merchant,
+            id: itemId,
+            name,
+            description,
+            price: formatMoney({ amount, currency: "USD" }),
+            merchant,
           },
           decision: {
             allowed: decision.allowed,
@@ -445,7 +377,7 @@ export async function takeChatTurn(
   return { output, text, proposal }
 }
 
-/** The click is the human decision. Execute the exact catalog purchase. */
+/** The click is the human decision. Execute the exact proposed purchase. */
 export async function confirmChatProposal(
   session: ChatSession,
   proposalId: string,
@@ -612,9 +544,19 @@ function proposalFromToolCalls(
   return null
 }
 
+function slugify(value: string): string {
+  const slug = value
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48)
+  return slug || `item-${randomUUID().slice(0, 8)}`
+}
+
 function fallbackText(proposal: ChatProposal | null): string {
   if (!proposal) {
-    return "I couldn't match that to an item in the catalog. Tell me a little more about what you need."
+    return "Tell me a little more about what you want to buy, including a price if you have one."
   }
   return `I can get the ${proposal.name} for ${formatMoney({ amount: proposal.amount, currency: proposal.currency })}. Review the proposal and approve it if you want me to go ahead.`
 }

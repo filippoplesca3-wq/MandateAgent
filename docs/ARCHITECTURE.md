@@ -189,23 +189,24 @@ with a random signing secret, issues a new demo mandate, seeds the same orders
 and trust history, wraps `createSimulatedTools` in the normal guard, and runs a
 conversational turn with the normal model fallback.
 
-The chat model gets exactly one tool, `propose_purchase`. It can only name an id
-from a server-side catalog; the price, merchant and currency are looked up on
-the server. The tool previews the policy decision and stores a proposal. It
-cannot create an order, capture a payment or invent an amount. When the visitor
-clicks the proposal, `confirmChatProposal` executes the guarded `create_order` →
-`pay_order` pair for that exact catalog item, consuming the parked human
-approvals rather than bypassing them.
+The chat model gets exactly one tool, `propose_purchase`. It may name any item
+and quote a USD price; the server validates the quote (at least $0.01, at most
+$10,000), converts it to integer minor units and resolves the merchant against
+the mandate. The tool previews the policy decision and stores a proposal. It
+cannot create an order, capture a payment or move money. When the visitor clicks
+the proposal, `confirmChatProposal` executes the guarded `create_order` →
+`pay_order` pair for that exact proposal, consuming the parked human approvals
+rather than bypassing them.
 
 Isolation is structural: every chat has its own store, signing key, mandate,
 approvals and ledger, and never receives the replay player or the recorded
 store. A chat cannot mutate the recording, spend another chat's budget or leave
 approvals behind. The key lives in the process environment and is only read by
-the route; it is never serialized into a snapshot or a response. Four limits
-bound cost: a global daily cap shared with one-shot live runs, a per-IP cooldown
-on new chats, a per-session turn cap and one in-flight request. The routes are
-disabled when the key or `DEMO_LIVE` is absent, and PayPal is always simulated on
-this path.
+the route; it is never serialized into a snapshot or a response. Two limits
+bound cost: a global daily cap shared with one-shot live runs and one in-flight
+request. Chats have no cooldown, idle expiry or turn cap. The routes are disabled
+when the key or `DEMO_LIVE` is absent, and PayPal is always simulated on this
+path.
 
 ## Persistence
 
@@ -228,10 +229,10 @@ deliberately ignores SQLite.
 | `src/paypal/webhook.ts` | PayPal webhook parsing and signature verification |
 | `src/agent/` | Gemini adapter and system prompt; no policy logic |
 | `src/server/` | Express API, SSE, replay player, live chat, demo seed |
-| `src/server/chat-demo.ts` | Chat sessions, catalog, proposal tool, guarded confirm flow |
+| `src/server/chat-demo.ts` | Chat sessions, arbitrary-item proposal tool, guarded confirm flow |
 | `src/mcp/` | The same guarded tools over MCP stdio |
 | `src/web/` | React console and AG Grid ledger |
-| `tests/` | 227 tests across 20 files |
+| `tests/` | 230 tests across 20 files |
 
 ## Why this shape
 

@@ -18,8 +18,15 @@ import { TEST_KEY } from "./helpers.js"
 
 const SECRET_KEY = "server-side-gemini-key-do-not-leak"
 
-/** A runner that behaves like a model choosing one catalog item. */
-function runnerFor(itemId: string, text = "Here is the item I can get."): ChatRunner {
+interface ProposalSpec {
+  name: string
+  amount: number
+  merchant?: string
+  description?: string
+}
+
+/** A runner that behaves like a model quoting an arbitrary item. */
+function runnerFor(proposal: ProposalSpec, text = "Here is the item I can get."): ChatRunner {
   return async (input) => {
     const tools = input.tools as Record<
       string,
@@ -28,17 +35,23 @@ function runnerFor(itemId: string, text = "Here is the item I can get."): ChatRu
     const propose = tools["propose_purchase"]
     if (!propose?.execute) throw new Error("propose_purchase is missing")
 
-    const raw = await propose.execute(
-      { itemId },
-      { toolCallId: "test-proposal", messages: input.messages },
-    )
+    const args = {
+      name: proposal.name,
+      amount: proposal.amount,
+      ...(proposal.merchant ? { merchant: proposal.merchant } : {}),
+      ...(proposal.description ? { description: proposal.description } : {}),
+    }
+    const raw = await propose.execute(args, {
+      toolCallId: "test-proposal",
+      messages: input.messages,
+    })
     const output = typeof raw === "string" ? raw : JSON.stringify(raw)
 
     return {
       model: "fake-model",
       text,
       durationMs: 3,
-      toolCalls: [{ toolName: "propose_purchase", input: { itemId }, output }],
+      toolCalls: [{ toolName: "propose_purchase", input: args, output }],
     }
   }
 }
@@ -61,7 +74,6 @@ interface ChatBody {
     status: string
   } | null
   turns: number
-  turnsRemaining: number
   snapshot: ServerSnapshot
   verification: { signatureValid: boolean; claimsValid: boolean }
   receipt: {
@@ -142,14 +154,20 @@ describe("chat demo — session isolation", () => {
     expect(second.store.ledger.list()).toHaveLength(0)
   })
 
-  it("proposes the $45 headset and leaves the budget untouched until approval", async () => {
+  it("proposes any item from the model's quote and leaves the budget untouched", async () => {
     const session = createChatSession()
     const turn = await takeChatTurn(session, "I want a new headset around $45", {
       apiKey: "test-key",
-      runner: runnerFor("headset"),
+      runner: runnerFor({
+        name: "Wireless headset",
+        amount: 45,
+        description: "Noise-cancelling, over-ear",
+      }),
     })
 
-    expect(turn.proposal?.itemId).toBe("headset")
+    expect(turn.proposal?.itemId).toBe("wireless-headset")
+    expect(turn.proposal?.name).toBe("Wireless headset")
+    expect(turn.proposal?.description).toBe("Noise-cancelling, over-ear")
     expect(turn.proposal?.amount).toBe(4_500)
     expect(turn.proposal?.requiresApproval).toBe(true)
     expect(turn.proposal?.allowed).toBe(false)
@@ -162,13 +180,13 @@ describe("chat demo — session isolation", () => {
     const session = createChatSession()
     const turn = await takeChatTurn(session, "I want a new headset around $45", {
       apiKey: "test-key",
-      runner: runnerFor("headset"),
+      runner: runnerFor({ name: "Wireless headset", amount: 45 }),
     })
     expect(turn.proposal).not.toBeNull()
 
     const result = await confirmChatProposal(session, turn.proposal!.id)
 
-    expect(result.receipt.itemId).toBe("headset")
+    expect(result.receipt.itemId).toBe("wireless-headset")
     expect(result.receipt.amount).toBe(4_500)
     expect(result.receipt.approvals).toBe(2)
     expect(result.receipt.orderId).toMatch(/^ORD/)
@@ -182,11 +200,28 @@ describe("chat demo — session isolation", () => {
     expect(session.store.listApprovals()).toHaveLength(0)
   })
 
+  it("buys a cheap arbitrary item without an approval", async () => {
+    const session = createChatSession()
+    const turn = await takeChatTurn(session, "A USB-C dock for $12", {
+      apiKey: "test-key",
+      runner: runnerFor({ name: "USB-C dock", amount: 12 }),
+    })
+
+    expect(turn.proposal?.allowed).toBe(true)
+    expect(turn.proposal?.requiresApproval).toBe(false)
+    expect(turn.proposal?.code).toBe("ALLOWED")
+
+    const result = await confirmChatProposal(session, turn.proposal!.id)
+    expect(result.receipt.amount).toBe(1_200)
+    expect(result.receipt.approvals).toBe(0)
+    expect(session.store.get(session.mandateId)?.state.spendToDate.amount).toBe(1_200)
+  })
+
   it("refuses a $75 monitor before it reaches PayPal", async () => {
     const session = createChatSession()
     const turn = await takeChatTurn(session, "I want the $75 monitor", {
       apiKey: "test-key",
-      runner: runnerFor("monitor"),
+      runner: runnerFor({ name: "4K monitor", amount: 75 }),
     })
 
     expect(turn.proposal?.allowed).toBe(false)
@@ -201,11 +236,45 @@ describe("chat demo — session isolation", () => {
     expect(session.store.ledger.list()).toHaveLength(0)
   })
 
+  it("refuses a seller outside the mandate, even for an affordable item", async () => {
+    const session = createChatSession()
+    const turn = await takeChatTurn(session, "Find a headset on sketchy-deals", {
+      apiKey: "test-key",
+      runner: runnerFor({ name: "Wireless headset", amount: 45, merchant: "sketchy-deals" }),
+    })
+
+    expect(turn.proposal?.allowed).toBe(false)
+    expect(turn.proposal?.requiresApproval).toBe(false)
+    expect(turn.proposal?.code).toBe("MERCHANT_NOT_ALLOWED")
+    await expect(confirmChatProposal(session, turn.proposal!.id)).rejects.toMatchObject({
+      code: "MERCHANT_NOT_ALLOWED",
+    })
+    expect(session.store.ledger.list()).toHaveLength(0)
+  })
+
+  it("rejects an invalid quote instead of creating a proposal", async () => {
+    const free = createChatSession()
+    const zero = await takeChatTurn(free, "A free sample", {
+      apiKey: "test-key",
+      runner: runnerFor({ name: "Free sample", amount: 0 }),
+    })
+    expect(zero.proposal).toBeNull()
+    expect(zero.output.toolCalls[0]?.output).toContain("INVALID_PROPOSAL")
+
+    const absurd = createChatSession()
+    const tooMuch = await takeChatTurn(absurd, "A whole car", {
+      apiKey: "test-key",
+      runner: runnerFor({ name: "A whole car", amount: 20_000 }),
+    })
+    expect(tooMuch.proposal).toBeNull()
+    expect(tooMuch.output.toolCalls[0]?.output).toContain("INVALID_PROPOSAL")
+  })
+
   it("spends a proposal once, even if the visitor clicks twice", async () => {
     const session = createChatSession()
     const turn = await takeChatTurn(session, "A headset please", {
       apiKey: "test-key",
-      runner: runnerFor("headset"),
+      runner: runnerFor({ name: "Wireless headset", amount: 45 }),
     })
 
     await confirmChatProposal(session, turn.proposal!.id)
@@ -221,7 +290,7 @@ describe("chat demo — session isolation", () => {
     const second = createChatSession()
     const turn = await takeChatTurn(first, "A headset please", {
       apiKey: "test-key",
-      runner: runnerFor("headset"),
+      runner: runnerFor({ name: "Wireless headset", amount: 45 }),
     })
 
     await expect(confirmChatProposal(second, turn.proposal!.id)).rejects.toMatchObject({
@@ -248,9 +317,7 @@ describe("chat demo — endpoint", () => {
     harness = await start({
       apiKey: SECRET_KEY,
       dailyCap: 5,
-      cooldownMs: 0,
-      chatMaxTurns: 4,
-      chatRunner: runnerFor("headset"),
+      chatRunner: runnerFor({ name: "Wireless headset", amount: 45 }),
     })
 
     const response = await chat(harness.base, {
@@ -261,10 +328,9 @@ describe("chat demo — endpoint", () => {
     expect(response.status).toBe(200)
     expect(body.ok).toBe(true)
     expect(body.sessionId).toBeTruthy()
-    expect(body.proposal?.itemId).toBe("headset")
+    expect(body.proposal?.itemId).toBe("wireless-headset")
     expect(body.proposal?.requiresApproval).toBe(true)
     expect(body.turns).toBe(1)
-    expect(body.turnsRemaining).toBe(3)
     expect(body.snapshot.mandate?.claims.id).toBeTruthy()
     expect(body.verification.signatureValid).toBe(true)
     expect(body.verification.claimsValid).toBe(true)
@@ -279,8 +345,7 @@ describe("chat demo — endpoint", () => {
     harness = await start({
       apiKey: SECRET_KEY,
       dailyCap: 5,
-      cooldownMs: 0,
-      chatRunner: runnerFor("headset"),
+      chatRunner: runnerFor({ name: "Wireless headset", amount: 45 }),
     })
 
     const turn = (await (
@@ -312,19 +377,17 @@ describe("chat demo — endpoint", () => {
     expect(((await again.json()) as ChatBody).code).toBe("ALREADY_PURCHASED")
   })
 
-  it("does not charge a new daily chat when a session continues", async () => {
+  it("does not charge a new daily chat when a session continues, and has no cooldown", async () => {
     harness = await start({
       apiKey: SECRET_KEY,
       dailyCap: 5,
-      cooldownMs: 60_000,
-      chatMaxTurns: 4,
-      chatRunner: runnerFor("headset"),
+      chatRunner: runnerFor({ name: "Wireless headset", amount: 45 }),
     })
 
     const first = (await (
       await chat(harness.base, { message: "I want a headset" })
     ).json()) as ChatBody
-    expect(first.turnsRemaining).toBe(3)
+    expect(first.turns).toBe(1)
 
     const second = await chat(harness.base, {
       sessionId: first.sessionId,
@@ -341,41 +404,44 @@ describe("chat demo — endpoint", () => {
     }
     expect(state.live.remaining).toBe(4)
 
-    // A brand-new chat hits the per-address cooldown; continuing one does not.
+    // A brand-new chat from the same address is allowed immediately. Only the
+    // daily cap limits how many new chats can start.
     const third = await chat(harness.base, { message: "Another headset" })
-    expect(third.status).toBe(429)
-    expect(third.headers.get("retry-after")).toBeTruthy()
+    const thirdBody = (await third.json()) as ChatBody
+    expect(third.status).toBe(200)
+    expect(thirdBody.sessionId).not.toBe(first.sessionId)
+
+    const after = (await (await fetch(`${harness.base}/api/state`)).json()) as {
+      live: { remaining: number }
+    }
+    expect(after.live.remaining).toBe(3)
   })
 
-  it("enforces the per-chat turn limit", async () => {
+  it("keeps the conversation going past four turns", async () => {
     harness = await start({
       apiKey: SECRET_KEY,
       dailyCap: 5,
-      cooldownMs: 0,
-      chatMaxTurns: 1,
-      chatRunner: runnerFor("headset"),
+      chatRunner: runnerFor({ name: "Wireless headset", amount: 45 }),
     })
 
-    const first = (await (
-      await chat(harness.base, { message: "I want a headset" })
-    ).json()) as ChatBody
-    expect(first.turnsRemaining).toBe(0)
-
-    const second = await chat(harness.base, {
-      sessionId: first.sessionId,
-      message: "And a keyboard too",
-    })
-    const body = (await second.json()) as ChatBody
-    expect(second.status).toBe(429)
-    expect(body.error).toContain("1 turns")
+    let sessionId: string | null = null
+    for (let turn = 1; turn <= 6; turn += 1) {
+      const response = await chat(harness.base, {
+        ...(sessionId ? { sessionId } : {}),
+        message: `Message ${turn}`,
+      })
+      const body = (await response.json()) as ChatBody
+      expect(response.status).toBe(200)
+      expect(body.turns).toBe(turn)
+      sessionId = body.sessionId
+    }
   })
 
   it("rejects an overlong message without spending the daily budget", async () => {
     harness = await start({
       apiKey: SECRET_KEY,
       dailyCap: 5,
-      cooldownMs: 0,
-      chatRunner: runnerFor("headset"),
+      chatRunner: runnerFor({ name: "Wireless headset", amount: 45 }),
     })
 
     const response = await chat(harness.base, { message: "x".repeat(501) })
@@ -391,8 +457,7 @@ describe("chat demo — endpoint", () => {
     harness = await start({
       apiKey: SECRET_KEY,
       dailyCap: 5,
-      cooldownMs: 0,
-      chatRunner: runnerFor("headset"),
+      chatRunner: runnerFor({ name: "Wireless headset", amount: 45 }),
     })
 
     const response = await fetch(`${harness.base}/api/demo/chat`, {
@@ -403,12 +468,11 @@ describe("chat demo — endpoint", () => {
     expect(response.status).toBe(415)
   })
 
-  it("reports an expired session instead of creating a mandate for it", async () => {
+  it("reports an unknown session instead of creating a mandate for it", async () => {
     harness = await start({
       apiKey: SECRET_KEY,
       dailyCap: 5,
-      cooldownMs: 0,
-      chatRunner: runnerFor("headset"),
+      chatRunner: runnerFor({ name: "Wireless headset", amount: 45 }),
     })
 
     const response = await chat(harness.base, {
@@ -422,8 +486,7 @@ describe("chat demo — endpoint", () => {
     harness = await start({
       apiKey: SECRET_KEY,
       dailyCap: 5,
-      cooldownMs: 0,
-      chatRunner: runnerFor("headset"),
+      chatRunner: runnerFor({ name: "Wireless headset", amount: 45 }),
     })
 
     const turn = (await (
@@ -443,7 +506,6 @@ describe("chat demo — endpoint", () => {
     harness = await start({
       apiKey: SECRET_KEY,
       dailyCap: 5,
-      cooldownMs: 0,
       chatRunner: async () => {
         throw new Error("model quota exhausted")
       },
@@ -463,8 +525,7 @@ describe("chat demo — endpoint", () => {
     harness = await start({
       apiKey: SECRET_KEY,
       dailyCap: 1,
-      cooldownMs: 0,
-      chatRunner: runnerFor("headset"),
+      chatRunner: runnerFor({ name: "Wireless headset", amount: 45 }),
     })
 
     const first = await chat(harness.base, { message: "A headset" })
@@ -480,7 +541,7 @@ describe("chat demo — endpoint", () => {
     const session = createChatSession()
     const turn = await takeChatTurn(session, "A headset", {
       apiKey: "test-key",
-      runner: runnerFor("headset"),
+      runner: runnerFor({ name: "Wireless headset", amount: 45 }),
     })
     await confirmChatProposal(session, turn.proposal!.id)
 

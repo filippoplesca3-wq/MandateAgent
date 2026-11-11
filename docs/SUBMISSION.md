@@ -128,11 +128,14 @@ model.
 - **Live vs. hosted.** The hosted build defaults to a recording so it works with
   no credentials, but judges can press **Chat live with Gemini**, say what they
   want to buy and talk to the real model: a multi-turn conversation against
-  simulated PayPal, in a throwaway store, capped per day, per visitor and per
-  session. The chat model only gets a proposal tool — it can pick a catalog id,
-  never a price and never a payment call — and the purchase runs only when the
-  visitor clicks the card. The server holds the key; the browser never sees it.
-  Real PayPal sandbox checkout stays local and is shown in the video.
+  simulated PayPal, in a throwaway store, bounded only by a shared daily model
+  budget. There is no cooldown, no idle expiry and no turn cap. The chat model
+  only gets a proposal tool — it may name any item and quote a USD price, never a
+  payment call. The server validates the quote, the guard enforces budget,
+  ceiling and merchant allowlist, and the purchase runs only when the visitor
+  clicks the card showing that exact price. The server holds the key; the browser
+  never sees it. Real PayPal sandbox checkout stays local and is shown in the
+  video.
 - **Free-tier limits.** Gemini's free tier caps requests per day per model, so
   the agent falls back across models, the hosted chat is capped, and the
   recording remains the zero-cost fallback.
@@ -140,7 +143,7 @@ model.
 ## Accomplishments that we're proud of
 
 - A deterministic enforcement layer that a manipulated model cannot widen.
-- 227 tests across 20 files, covering signature forgery, tampered claims, revoked
+- 230 tests across 20 files, covering signature forgery, tampered claims, revoked
   and expired mandates, concurrent approvals, budget races, multi-turn chat
   isolation and single-use proposals, ledger accounting, CORS, rate limits and
   request validation.
@@ -197,9 +200,10 @@ The hosted demo serves a **read-only recording of a real Gemini run**, clearly
 labelled `replay` in the header. It needs no PayPal credentials. When the
 operator configures a server-side Gemini key, the banner also offers **Chat live
 with Gemini**: the real model answers in the visitor's language, checks the
-mandate and proposes one catalog item, and the guarded purchase runs only after
-the visitor clicks the proposal. Each chat gets a fresh, throwaway store, and the
-key never reaches the browser. Both paths start with a pre-seeded demo mandate.
+mandate and proposes any item with a price quote, and the guarded purchase runs
+only after the visitor clicks the proposal. Each chat gets a fresh, throwaway
+store, and the key never reaches the browser. Both paths start with a pre-seeded
+demo mandate.
 
 Screenshots for the Devpost gallery are in `docs/screenshots/`:
 `console.png` (the console after one run), `ledger.png` (the three outcomes),
@@ -218,14 +222,16 @@ Screenshots for the Devpost gallery are in `docs/screenshots/`:
 3. Press **Chat live with Gemini** in the banner (shown when the deployment has a
    server-side key). Write what you want to buy in your own words — for example
    "I want a new headset, it costs between $40 and $50, is the budget enough?".
-   The real model answers in your language, checks the mandate and proposes one
-   catalog item. The $75 monitor is refused above the per-transaction ceiling
-   before any PayPal call; the $45 headset is parked for human approval. Click
-   the proposal card to approve it, and the guarded `create_order` →
-   `pay_order` pair runs against simulated PayPal, returning a receipt and the
-   chat's own ledger. Nothing changes the recording, and no money can move.
-   Chats are capped per day, per visitor and per session; a `429` explains which
-   limit was hit.
+   The real model answers in your language, checks the mandate and proposes any
+   item you name with a price quote — there is no catalog. An affordable item
+   such as a $12 USB-C dock is allowed outright; a $45 headset is parked for
+   human approval; a $75 monitor is refused above the per-transaction ceiling; a
+   seller outside the allowlist is refused too. Click the proposal card to
+   approve the exact quote, and the guarded `create_order` → `pay_order` pair
+   runs against simulated PayPal, returning a receipt and the chat's own ledger.
+   Nothing changes the recording, and no money can move. Chats are bounded by a
+   shared daily model budget; there is no cooldown, idle expiry or turn cap, so
+   you can keep talking. A `429` only means the day's model budget is exhausted.
 4. Use the **Test a payment** presets. The $12, $45 and $200 presets run a live
    dry-run policy check against the pre-seeded mandate. The **$99 ->
    sketchy-deals (injection)** preset is a deterministic, scripted attack; on

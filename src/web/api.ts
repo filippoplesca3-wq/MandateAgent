@@ -173,7 +173,7 @@ export interface LiveRunResponse {
 
 export type ChatProposalStatus = "proposed" | "purchasing" | "purchased" | "failed"
 
-/** A catalog item the agent proposed. The price comes from the server. */
+/** An item the agent proposed. The price is the model's quote, validated by the server. */
 export interface ChatProposal {
   id: string
   itemId: string
@@ -209,7 +209,6 @@ export interface ChatTurnResponse {
   text: string
   proposal: ChatProposal | null
   turns: number
-  turnsRemaining: number
   durationMs: number
   snapshot: Snapshot
   verification: {

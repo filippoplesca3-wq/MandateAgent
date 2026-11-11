@@ -42,7 +42,6 @@ import {
   chatVerification,
   confirmChatProposal,
   createChatSession,
-  pruneChatSessions,
   takeChatTurn,
   type ChatRunner,
   type ChatSession,
@@ -176,17 +175,11 @@ export interface LiveDemoConfig {
   apiKey: string
   /** Maximum live runs per UTC day across all visitors. Default 10. */
   dailyCap?: number
-  /** Minimum gap between live runs from one address. Default 2 minutes. */
-  cooldownMs?: number
   model?: string
   maxSteps?: number
-  /** Maximum user turns in one chat session. Default 4. */
-  chatMaxTurns?: number
-  /** How long an idle chat session lives. Default 10 minutes. */
-  chatSessionTtlMs?: number
   /** Injectable so tests can exercise the limits without calling Gemini. */
   run?: (input: LiveRunInput) => Promise<LiveRunOutput>
-  /** Injectable so tests can choose a catalog item without calling Gemini. */
+  /** Injectable so tests can choose a proposal without calling Gemini. */
   chatRunner?: ChatRunner
 }
 
@@ -247,26 +240,22 @@ export function createApp(config: ServerConfig): ServerHandle {
   app.disable("x-powered-by")
   // Render terminates TLS in front of the process. Trust one hop so req.ip is
   // the visitor, not the proxy; otherwise every visitor shares one rate-limit
-  // bucket and one live-run cooldown.
+  // bucket.
   app.set("trust proxy", 1)
 
   let mandateId = config.mandateId
   let running = false
 
-  // Live runs are capped globally per day and per address. In-memory is enough
-  // for the demo: a restart is a fresh window, and the cap is a cost guard, not
-  // a billing system.
+  // Live runs are capped globally per day. In-memory is enough for the demo: a
+  // restart is a fresh window, and the cap is a cost guard, not a billing
+  // system. There is no cooldown or idle timeout: a judge can keep chatting.
   const liveDailyCap = config.liveDemo?.dailyCap ?? 10
-  const liveCooldownMs = config.liveDemo?.cooldownMs ?? 120_000
-  const liveRunsByIp = new Map<string, number>()
   let liveRunsDay = new Date().toISOString().slice(0, 10)
   let liveRunsToday = 0
   let liveInFlight = false
 
   // Chat sessions share the daily budget with one-shot live runs. The cap is a
   // model-cost guard, not a billing system, so in-memory state is enough.
-  const chatMaxTurns = config.liveDemo?.chatMaxTurns ?? 4
-  const chatSessionTtlMs = config.liveDemo?.chatSessionTtlMs ?? 10 * 60_000
   const chatSessions = new Map<string, ChatSession>()
 
   function liveRemaining(): number {
@@ -546,25 +535,6 @@ export function createApp(config: ServerConfig): ServerHandle {
       return
     }
 
-    const now = Date.now()
-    const ip = req.ip ?? "unknown"
-    const last = liveRunsByIp.get(ip) ?? 0
-    if (now - last < liveCooldownMs) {
-      const retryAfter = Math.max(1, Math.ceil((liveCooldownMs - (now - last)) / 1_000))
-      res.setHeader("Retry-After", String(retryAfter))
-      res.status(429).json({
-        ok: false,
-        error: `One live run every ${Math.round(liveCooldownMs / 1_000)}s. Try again in ${retryAfter}s.`,
-      })
-      return
-    }
-
-    liveRunsByIp.set(ip, now)
-    if (liveRunsByIp.size > 1_000) {
-      for (const [candidate, at] of liveRunsByIp) {
-        if (now - at > liveCooldownMs) liveRunsByIp.delete(candidate)
-      }
-    }
     liveRunsToday += 1
     liveInFlight = true
 
@@ -596,8 +566,9 @@ export function createApp(config: ServerConfig): ServerHandle {
    *
    * The first turn creates a session and spends one unit of the shared daily
    * budget. Later turns must present the session id; they do not create a new
-   * mandate or a new cooldown window. The model only ever sees the proposal
-   * tool, so it cannot move money from the chat.
+   * mandate or spend another unit. A session has no turn limit and no idle
+   * expiry: the visitor stops when they are done. The model only ever sees the
+   * proposal tool, so it cannot move money from the chat.
    */
   app.post("/api/demo/chat", rateLimit, (req, res, next) => {
     if (!req.is("application/json")) {
@@ -623,22 +594,13 @@ export function createApp(config: ServerConfig): ServerHandle {
       return
     }
 
-    pruneChatSessions(chatSessions, chatSessionTtlMs)
-
     let session: ChatSession | undefined
     if (body.sessionId) {
       session = chatSessions.get(body.sessionId)
       if (!session) {
         res.status(410).json({
           ok: false,
-          error: "This chat expired or does not exist. Start a new chat.",
-        })
-        return
-      }
-      if (session.turns >= chatMaxTurns) {
-        res.status(429).json({
-          ok: false,
-          error: `This chat has used all ${chatMaxTurns} turns. Start a new chat to keep going.`,
+          error: "This chat does not exist on this server. It may have restarted. Start a new chat.",
         })
         return
       }
@@ -661,29 +623,12 @@ export function createApp(config: ServerConfig): ServerHandle {
         return
       }
 
-      const now = Date.now()
-      const ip = req.ip ?? "unknown"
-      const last = liveRunsByIp.get(ip) ?? 0
-      if (now - last < liveCooldownMs) {
-        const retryAfter = Math.max(1, Math.ceil((liveCooldownMs - (now - last)) / 1_000))
-        res.setHeader("Retry-After", String(retryAfter))
-        res.status(429).json({
-          ok: false,
-          error: `One live chat every ${Math.round(liveCooldownMs / 1_000)}s. Try again in ${retryAfter}s.`,
-        })
-        return
-      }
-
-      liveRunsByIp.set(ip, now)
-      if (liveRunsByIp.size > 1_000) {
-        for (const [candidate, at] of liveRunsByIp) {
-          if (now - at > liveCooldownMs) liveRunsByIp.delete(candidate)
-        }
-      }
       liveRunsToday += 1
 
       session = createChatSession()
       chatSessions.set(session.id, session)
+      // A memory bound, not a timeout: the oldest chat is evicted only when the
+      // process is holding too many of them.
       while (chatSessions.size > 200) {
         const oldest = chatSessions.keys().next().value
         if (oldest === undefined) break
@@ -709,7 +654,6 @@ export function createApp(config: ServerConfig): ServerHandle {
           text: turn.text,
           proposal: turn.proposal,
           turns: activeSession.turns,
-          turnsRemaining: Math.max(0, chatMaxTurns - activeSession.turns),
           durationMs: turn.output.durationMs,
           snapshot: chatSnapshot(activeSession),
           verification: chatVerification(activeSession),
@@ -727,7 +671,7 @@ export function createApp(config: ServerConfig): ServerHandle {
   /**
    * The visitor clicked the proposal card. That click is the human decision:
    * the server executes the guarded create/capture pair for exactly the
-   * catalog item that was proposed. No client-supplied amount is accepted.
+   * proposal that was shown. No client-supplied amount is accepted.
    */
   app.post("/api/demo/chat/confirm", rateLimit, (req, res, next) => {
     if (!req.is("application/json")) {
@@ -747,12 +691,11 @@ export function createApp(config: ServerConfig): ServerHandle {
     const body = validateBody(chatConfirmBody, req.body, next)
     if (!body) return
 
-    pruneChatSessions(chatSessions, chatSessionTtlMs)
     const session = chatSessions.get(body.sessionId)
     if (!session) {
       res.status(410).json({
         ok: false,
-        error: "This chat expired or does not exist. Start a new chat.",
+        error: "This chat does not exist on this server. It may have restarted. Start a new chat.",
       })
       return
     }

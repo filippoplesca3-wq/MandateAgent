@@ -5,7 +5,7 @@
 [![CI](https://github.com/filippoplesca3-wq/MandateAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/filippoplesca3-wq/MandateAgent/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/filippoplesca3-wq/MandateAgent?label=release)](https://github.com/filippoplesca3-wq/MandateAgent/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Tests: 227](https://img.shields.io/badge/tests-227%20passing-brightgreen.svg)](#tests)
+[![Tests: 230](https://img.shields.io/badge/tests-230%20passing-brightgreen.svg)](#tests)
 ![PayPal AI Hackathon 2026](https://img.shields.io/badge/PayPal%20AI%20Hackathon-2026-003087)
 
 Agent Mandate lets an AI agent buy things for a person without ever holding the
@@ -39,11 +39,12 @@ approved by a human, $99 denied, and every decision in the ledger.*
    calls. If the instance is asleep, `npm ci && npm run demo` serves the same
    recording at http://localhost:3001.
 2. **Or talk to the model live.** Press **Chat live with Gemini** in the banner
-   and say what you want to buy in your own words. The model checks the mandate,
-   answers in your language and proposes one catalog item; nothing is paid until
-   you click the proposal card. The chat gets its own mandate, signing key and
-   ledger, so the recording is untouched. No PayPal credentials are involved and
-   no money can move. Chats are capped per day, per visitor and per session.
+   and say what you want to buy in your own words — anything, there is no
+   catalog. The model checks the mandate, answers in your language and proposes
+   the item with a price quote; nothing is paid until you click the proposal
+   card. The chat gets its own mandate, signing key and ledger, so the recording
+   is untouched. No PayPal credentials are involved and no money can move. Only
+   a shared daily model budget limits how many new chats can start.
 3. **Read the ledger.** One run produces all three outcomes: $24 allowed, $45
    escalated and approved, $99 denied at `sketchy-deals`.
 4. **Try a policy check.** The **Test a payment** presets run a real dry-run
@@ -51,7 +52,7 @@ approved by a human, $99 denied, and every decision in the ledger.*
 5. **Verify the mandate.** Press **Verify** next to the signature. The console
    shows `SIGNATURE VALID · Ed25519 · recorded key`: the mandate on screen
    checks out against the key the recording was signed with.
-6. **Run the proof.** `npm ci && npm test` (227 tests),
+6. **Run the proof.** `npm ci && npm test` (230 tests),
    `npm run verify:recording` (offline Ed25519 check, no server),
    `npm run check:demo -- <url>` (audits the demo's own claims) and
    `npm run check:live` (real PayPal sandbox + Gemini).
@@ -102,7 +103,7 @@ Vitest · MCP
 
 | Criterion | Where to look |
 | --- | --- |
-| **Technological implementation** | 227 tests across 20 files, including concurrent approvals, budget races, signature forgery, tampered claims, revoked and expired mandates, multi-turn chat isolation and single-use proposals, CORS, rate limits, request validation and ledger accounting. `npm test`, `npm run typecheck`, `npm run build`. |
+| **Technological implementation** | 230 tests across 20 files, including concurrent approvals, budget races, signature forgery, tampered claims, revoked and expired mandates, multi-turn chat isolation and single-use proposals, CORS, rate limits, request validation and ledger accounting. `npm test`, `npm run typecheck`, `npm run build`. |
 | **Use of PayPal** | Real Agent Toolkit tools, sandbox order creation and capture, JS SDK v6 checkout, sandbox decline path, signature-verified webhooks, public-key mandate verification. See "How PayPal is used" and "Live mode check". |
 | **Design** | One deterministic core, swappable clients. The guard resolves amounts instead of trusting the model; the ledger records refusals as evidence; the console shows the mandate, run timeline, decisions and ledger live. |
 | **Potential impact** | Gives buyers a safe way to delegate spending and gives merchants a verifiable signal that an agent is authorised. The same mandate artefact works for procurement, subscriptions and expense limits. |
@@ -361,44 +362,48 @@ server:
 
 - creates a fresh in-memory `Store`, signing key and demo mandate for that chat,
   so the recording, its budget and its approvals are untouched;
-- gives the model exactly one tool, `propose_purchase`, which can only choose an
-  id from a server-side catalog. The model never sees a payment tool and never
-  supplies a price;
-- previews the policy decision and returns a proposal card. Nothing is paid until
-  the visitor clicks it;
+- gives the model exactly one tool, `propose_purchase`, which accepts any item
+  name and a USD price quote. The model never sees a payment tool and never moves
+  money;
+- validates the quote on the server (at least $0.01, at most $10,000), converts
+  it to integer minor units, and previews the policy decision. The card shows the
+  exact quote the visitor is approving, and nothing is paid until they click it;
 - on click, runs the guarded `create_order` → `pay_order` pair for that exact
-  catalog item, consuming the parked human approvals rather than bypassing them;
+  proposal, consuming the parked human approvals rather than bypassing them;
 - returns the receipt, the isolated ledger and a server-computed Ed25519 check of
   the chat's fresh mandate.
 
 `POST /api/demo/chat` takes `{ "message": "…" }` and returns a `sessionId`;
 later turns send `{ "sessionId": "…", "message": "…" }`. `POST
 /api/demo/chat/confirm` takes `{ "sessionId": "…", "proposalId": "…" }`. The
-message is capped at 500 characters, each session gets four user turns by
-default, and an idle session expires after ten minutes.
+message is capped at 500 characters. A chat has no turn limit and no idle
+expiry: the visitor stops when they are done.
 
-The catalog is authoritative: a $45 studio headset sits above the $40
+The model's price is a quote, not an authority: the guard still enforces the
+budget, the per-transaction ceiling and the merchant allowlist, and the visitor
+approves the exact number on the card. A $45 headset sits above the $40
 auto-approval threshold, so the guard parks it for human approval and the click
 releases it; a $75 monitor is refused by the per-transaction ceiling before any
-PayPal call. The model is told to read the guard's decision and explain it
-honestly, including refusals.
+PayPal call; a seller outside the allowlist is refused too. The model is told to
+read the guard's decision and explain it honestly, including refusals.
 
 The Gemini key never reaches the browser and is never included in a response.
-Cost is bounded four ways: `DEMO_LIVE_DAILY_CAP` chats per UTC day (default 10,
-shared with one-shot live runs), `DEMO_LIVE_COOLDOWN_SECONDS` between new chats
-from one address (default 120), `DEMO_CHAT_MAX_TURNS` per session (default 4),
-and one live request in flight at a time. With no key, or with `DEMO_LIVE`
-unset, both endpoints answer `503` and the recording remains the only path.
+Cost is bounded two ways: `DEMO_LIVE_DAILY_CAP` new chats per UTC day (default
+10, shared with one-shot live runs) and one live request in flight at a time.
+There is no cooldown and no session expiry, so a judge can keep talking. With no
+key, or with `DEMO_LIVE` unset, both endpoints answer `503` and the recording
+remains the only path.
 
 This is the honest split: the hosted chat proves the **model and guard** are
 real, while the video proves the **PayPal sandbox checkout** with a real payer
 approval. The public server never holds PayPal credentials.
 
-![Live chat: the model proposes the $45 headset and the visitor approves it](docs/screenshots/chat.png)
+![Live chat: the model proposes a $30 LED desk lamp and the visitor buys it](docs/screenshots/chat.png)
 
-*Live chat in Italian: the model checks the $120 budget, proposes the $45
-headset, the visitor clicks approve, and the guarded create/capture pair returns
-a receipt. The chat has its own ledger; the recording is untouched.*
+*Live chat in Italian: the visitor asks for a desk lamp, an item that was never
+in any catalog. The model quotes $30, the mandate allows it outright, and the
+guarded create/capture pair returns a receipt. The chat has its own ledger; the
+recording is untouched.*
 
 ## Deploy on Render (free)
 
@@ -410,8 +415,7 @@ a receipt. The chat has its own ledger; the recording is untouched.*
 - start: `npm start`
 - env: `REPLAY_FILE=replays/demo-run.json`, plus a Render-generated
   `MANDATE_SIGNING_KEY`
-- optional live chat: `DEMO_LIVE=1`, `DEMO_LIVE_DAILY_CAP=10`,
-  `DEMO_LIVE_COOLDOWN_SECONDS=120`, `DEMO_CHAT_MAX_TURNS=4`, and
+- optional live chat: `DEMO_LIVE=1`, `DEMO_LIVE_DAILY_CAP=10`, and
   `GOOGLE_GENERATIVE_AI_API_KEY` set as a secret in the Render dashboard
 
 No PayPal credentials are required: replay mode never calls PayPal, and the
@@ -617,7 +621,7 @@ about real agents.
 ## Tests
 
 ```bash
-npm test          # 227 tests, 20 files
+npm test          # 230 tests, 20 files
 npm run typecheck
 npm run build
 npm run verify    # test + build
@@ -652,9 +656,7 @@ every push (`.github/workflows/ci.yml`).
 | `REPLAY_FILE` | no | Serve a recorded run instead of calling any API. |
 | `REPLAY_FRAME_MS` | no | Playback beat per frame, default `1200`. |
 | `DEMO_LIVE` | no | `1` enables the live chat when a Gemini key is present. |
-| `DEMO_LIVE_DAILY_CAP` | no | Live chats per UTC day, default 10. |
-| `DEMO_LIVE_COOLDOWN_SECONDS` | no | Minimum gap between new chats from one address, default 120. |
-| `DEMO_CHAT_MAX_TURNS` | no | User turns per chat session, default 4. |
+| `DEMO_LIVE_DAILY_CAP` | no | New live chats per UTC day, default 10. |
 | `PORT` | no | API port, default `3001`. |
 
 On the Gemini free tier the daily request cap is small and counted **per

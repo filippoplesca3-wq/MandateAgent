@@ -37,8 +37,8 @@ them, and where the evidence lives.
 | 19 | A failed capture still consumes budget | The reservation is released on exception or error result; only a successful call confirms it | `tests/guard.test.ts` — "does not commit budget twice when PayPal rejects a capture"; `tests/reservation.test.ts` — release |
 | 20 | The ledger disagrees with the spend counter | The invariant `spendToDate == sum(committed ledger entries)` is asserted after every outcome | `tests/guard.test.ts` — budget accounting |
 | 21 | A hostile page frames the console, sniffs response types or reads the referrer | `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` on every response; `x-powered-by` removed | `tests/http-hardening.test.ts` — hardening headers |
-| 22 | A public live chat burns Gemini quota or mutates the recorded demo | Every chat gets a fresh in-memory store, signing key and mandate; PayPal is simulated; the message is capped at 500 characters; a global daily cap shared with one-shot runs, a per-IP cooldown on new chats, a per-session turn cap and a single in-flight slot bound cost; the routes are off without a server-side key | `src/server/chat-demo.ts`; `src/server/app.ts` — chat caps; `tests/chat-demo.test.ts` — isolation, cap, cooldown, turn limit, key leak |
-| 23 | A chat visitor buys a different item, a different price, or someone else's proposal | The model can only name a catalog id; price, merchant and currency are resolved server-side. A proposal belongs to one session, is single-use, and a refused item never reaches PayPal. The click consumes the parked approval for that exact payment instead of bypassing the guard | `src/server/chat-demo.ts` — `confirmChatProposal`; `tests/chat-demo.test.ts` — double confirm, cross-session proposal, $75 denial |
+| 22 | A public live chat burns Gemini quota or mutates the recorded demo | Every chat gets a fresh in-memory store, signing key and mandate; PayPal is simulated; the message is capped at 500 characters; a global daily cap shared with one-shot runs and a single in-flight slot bound cost; there is no cooldown, idle expiry or turn cap, so a judge is never cut off; the routes are off without a server-side key | `src/server/chat-demo.ts`; `src/server/app.ts` — chat caps; `tests/chat-demo.test.ts` — isolation, daily cap, no cooldown, no turn limit, key leak |
+| 23 | A chat visitor buys a different item or price than the card, or someone else's proposal | The model may propose any item and quote a USD price, but the server validates the quote, converts it to minor units and previews the policy decision. The card shows the exact amount; the guard still enforces budget, ceiling and merchant allowlist. A proposal belongs to one session, is single-use, and a refused item never reaches PayPal. The click consumes the parked approval for that exact payment instead of bypassing the guard | `src/server/chat-demo.ts` — `confirmChatProposal`; `tests/chat-demo.test.ts` — arbitrary quote, double confirm, cross-session proposal, $75 denial, merchant denial |
 
 ## What is not protected
 
@@ -86,7 +86,7 @@ rather than a public issue.
 
 ```bash
 npm ci
-npm test              # 227 tests, 20 files
+npm test              # 230 tests, 20 files
 npm run typecheck
 npm run build
 npm run check:live    # real PayPal sandbox + Gemini, sandbox only

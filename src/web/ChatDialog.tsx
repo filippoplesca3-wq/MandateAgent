@@ -1,10 +1,10 @@
 /**
  * The live purchasing chat.
  *
- * The visitor writes what they want; the model answers and may propose one
- * catalog item. The proposal card is the only thing that can start a payment,
- * and it starts it only when the visitor clicks. Every chat has its own
- * mandate, signing key and ledger on the server.
+ * The visitor writes what they want; the model answers and may propose any
+ * item with a price quote. The proposal card is the only thing that can start a
+ * payment, and it starts it only when the visitor clicks. Every chat has its
+ * own mandate, signing key and ledger on the server.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -28,7 +28,7 @@ interface ChatBubble {
 const GREETING: ChatBubble = {
   id: "greeting",
   role: "assistant",
-  text: "Tell me what you want to buy. I'll check the mandate and propose an item from the catalog. Nothing is paid until you approve the card.",
+  text: "Tell me what you want to buy — anything. I'll check the mandate and propose it with a price. Nothing is paid until you approve the card.",
 }
 
 function money(amount: number, currency = "USD"): string {
@@ -42,7 +42,7 @@ export function ChatDialog(props: { onClose: () => void }) {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [confirming, setConfirming] = useState<string | null>(null)
-  const [turnsRemaining, setTurnsRemaining] = useState<number | null>(null)
+  const [turns, setTurns] = useState<number | null>(null)
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
   const [model, setModel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -52,7 +52,6 @@ export function ChatDialog(props: { onClose: () => void }) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   const busy = sending || confirming !== null
-  const exhausted = turnsRemaining === 0
 
   useEffect(() => {
     if (!sending) return
@@ -76,7 +75,7 @@ export function ChatDialog(props: { onClose: () => void }) {
     setMessages([GREETING])
     setInput("")
     setSessionId(null)
-    setTurnsRemaining(null)
+    setTurns(null)
     setSnapshot(null)
     setModel(null)
     setError(null)
@@ -85,7 +84,7 @@ export function ChatDialog(props: { onClose: () => void }) {
 
   const send = useCallback(async () => {
     const text = input.trim()
-    if (!text || busy || exhausted) return
+    if (!text || busy) return
 
     setInput("")
     setError(null)
@@ -107,7 +106,7 @@ export function ChatDialog(props: { onClose: () => void }) {
       })
 
       setSessionId(response.sessionId)
-      setTurnsRemaining(response.turnsRemaining)
+      setTurns(response.turns)
       setSnapshot(response.snapshot)
       setModel(response.model)
       setMessages((previous) => [
@@ -125,7 +124,7 @@ export function ChatDialog(props: { onClose: () => void }) {
       setSending(false)
       inputRef.current?.focus()
     }
-  }, [busy, exhausted, input, sessionId])
+  }, [busy, input, sessionId])
 
   const confirm = useCallback(
     async (proposal: ChatProposal) => {
@@ -194,8 +193,8 @@ export function ChatDialog(props: { onClose: () => void }) {
             </h2>
             <p className="panel-sub">
               Real Gemini, simulated PayPal. Say what you want in your own words: the model checks
-              the mandate and proposes one catalog item. You approve the card before anything is
-              paid. This chat gets its own mandate, signing key and ledger.
+              the mandate and proposes any item with a price. You approve the card before anything
+              is paid. This chat gets its own mandate, signing key and ledger.
             </p>
           </div>
           <div className="chat-head-actions">
@@ -233,7 +232,7 @@ export function ChatDialog(props: { onClose: () => void }) {
                   <span className="pulse" /> thinking · {(elapsed / 1_000).toFixed(1)}s
                 </span>
                 <span className="muted">
-                  Gemini is reading the catalog and deciding whether to propose an item.
+                  Gemini is working out what to propose and checking the mandate.
                 </span>
               </div>
             </div>
@@ -258,7 +257,7 @@ export function ChatDialog(props: { onClose: () => void }) {
                 )}
                 tone="amber"
               />
-              <ChatStat label="Turns" value={turnsRemaining === null ? "—" : String(turnsRemaining)} />
+              <ChatStat label="Turns" value={turns === null ? "—" : String(turns)} />
             </div>
 
             {snapshot.ledger.length > 0 ? (
@@ -295,12 +294,6 @@ export function ChatDialog(props: { onClose: () => void }) {
 
         {error ? <div className="alert error">{error}</div> : null}
 
-        {exhausted ? (
-          <p className="chat-ended">
-            This chat has reached its turn limit. Press <em>New chat</em> to start another one.
-          </p>
-        ) : null}
-
         <div className="chat-composer">
           <textarea
             ref={inputRef}
@@ -316,24 +309,20 @@ export function ChatDialog(props: { onClose: () => void }) {
             rows={2}
             maxLength={500}
             spellCheck={false}
-            disabled={busy || exhausted}
-            placeholder={
-              exhausted
-                ? "This chat has ended."
-                : "Tell the agent what you want to buy…"
-            }
+            disabled={busy}
+            placeholder="Tell the agent what you want to buy…"
           />
           <div className="chat-composer-actions">
             <span className="muted">
-              {turnsRemaining === null
+              {turns === null
                 ? "Multi-turn chat · one proposal at a time"
-                : `${turnsRemaining} ${turnsRemaining === 1 ? "turn" : "turns"} left`}
+                : `${turns} ${turns === 1 ? "turn" : "turns"} · one proposal at a time`}
               {model ? ` · ${model}` : ""}
             </span>
             <button
               className="btn primary"
               onClick={() => void send()}
-              disabled={busy || exhausted || input.trim().length === 0}
+              disabled={busy || input.trim().length === 0}
             >
               {sending ? "Thinking…" : "Send"}
             </button>
