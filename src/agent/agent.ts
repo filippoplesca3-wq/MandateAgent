@@ -236,6 +236,22 @@ export interface ChatTurnOutput {
  * agent. The tool set is supplied by the caller: the chat phase only gets
  * `propose_purchase`, never a payment tool.
  */
+/**
+ * A judge is watching the clock, so a chat turn is interactive: one quick
+ * attempt per model, no long exponential backoff, minimal thinking, and a hard
+ * deadline. A slow or exhausted model is abandoned instead of retried.
+ */
+const CHAT_ATTEMPT_TIMEOUT_MS = 15_000
+const CHAT_TURN_DEADLINE_MS = 25_000
+
+const FAST_THINKING = { google: { thinkingConfig: { thinkingLevel: "low" as const } } }
+
+/** Some models reject thinkingConfig outright; that is worth one silent retry. */
+function thinkingRejected(error: unknown): boolean {
+  const text = error instanceof Error ? `${error.message} ${String(error.cause ?? "")}` : String(error)
+  return /thinking|thought/i.test(text) && /invalid|unsupported|not supported|400/i.test(text)
+}
+
 export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnOutput> {
   if (!input.apiKey) {
     throw new Error(
@@ -245,11 +261,13 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnOutput>
 
   const preferred = input.model ?? process.env.AGENT_MODEL
   const candidates = preferred ? [preferred] : DEFAULT_MODELS
+  const deadline = Date.now() + CHAT_TURN_DEADLINE_MS
 
   let lastError: unknown
   for (const modelId of candidates) {
+    if (Date.now() >= deadline) break
     try {
-      return await runChatTurnOnModel(input, modelId)
+      return await runChatTurnOnModel(input, modelId, deadline)
     } catch (error) {
       lastError = error
       if (!isRetryableElsewhere(error)) break
@@ -262,18 +280,33 @@ export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnOutput>
 async function runChatTurnOnModel(
   input: ChatTurnInput,
   modelId: string,
+  deadline: number,
 ): Promise<ChatTurnOutput> {
   const started = Date.now()
   const google = createGoogleGenerativeAI({ apiKey: input.apiKey })
 
-  const result = await generateText({
-    model: google(modelId),
-    system: input.system,
-    messages: input.messages,
-    tools: input.tools,
-    stopWhen: stepCountIs(input.maxSteps ?? 2),
-    maxRetries: 4,
-  })
+  const attempt = (fastThinking: boolean): Promise<Awaited<ReturnType<typeof generateText>>> => {
+    // Never let one attempt outlive the turn's deadline.
+    const timeoutMs = Math.max(1_000, Math.min(CHAT_ATTEMPT_TIMEOUT_MS, deadline - Date.now()))
+    return generateText({
+      model: google(modelId),
+      system: input.system,
+      messages: input.messages,
+      tools: input.tools,
+      stopWhen: stepCountIs(input.maxSteps ?? 2),
+      maxRetries: 1,
+      abortSignal: AbortSignal.timeout(timeoutMs),
+      ...(fastThinking ? { providerOptions: FAST_THINKING } : {}),
+    })
+  }
+
+  let result: Awaited<ReturnType<typeof attempt>>
+  try {
+    result = await attempt(true)
+  } catch (error) {
+    if (!thinkingRejected(error)) throw error
+    result = await attempt(false)
+  }
 
   const toolCalls: ChatToolCall[] = result.steps.flatMap((step) =>
     step.toolCalls.map((call) => {
@@ -298,7 +331,7 @@ async function runChatTurnOnModel(
 /** True when another model has a good chance of succeeding. */
 function isRetryableElsewhere(error: unknown): boolean {
   const text = error instanceof Error ? `${error.message} ${String(error.cause ?? "")}` : String(error)
-  return /429|RESOURCE_EXHAUSTED|quota|503|UNAVAILABLE|overloaded|not available|404|not found/i.test(text)
+  return /429|RESOURCE_EXHAUSTED|quota|503|UNAVAILABLE|overloaded|not available|404|not found|timed out|timeout|aborted/i.test(text)
 }
 
 function readableAgentError(error: unknown, models: string): string {
