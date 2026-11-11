@@ -279,10 +279,17 @@ tests and deployment.
 
 ## Submission checklist
 
+Full ordered list, with the verified state of every claim:
+[PRE-SUBMIT.md](PRE-SUBMIT.md).
+
 - [ ] Hosted demo URL replaced above and in `README.md`.
 - [ ] Public YouTube video, under 3:00, URL replaced above and in `README.md`.
+- [ ] **Tools** field names Gemini, AI SDK 7, PayPal Agent Toolkit and the rest,
+      with one line on how each is used.
+- [ ] Sponsor tools selected on the form: **Render** and **AG Grid**.
 - [ ] Screenshots from `docs/screenshots/` uploaded to the Devpost gallery.
 - [ ] Devpost fields filled from this file.
-- [ ] Repo is public, the license is visible and the CI badge is green.
+- [ ] Repo is public, MIT visible in the **About** panel, CI badge green.
 - [ ] Sandbox credentials and the **LIVE** badge are visible in the video.
-- [ ] Submitted before **12 November 2026, 12:00 PM PT** (21:00 CET).
+- [ ] Submitted before **12 November 2026, 12:00 PM PST** (20:00 UTC, 21:00
+      CET). Nothing edited afterwards until winners are announced.

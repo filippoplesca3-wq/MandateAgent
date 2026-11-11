@@ -1,17 +1,25 @@
 # Pre-submission checklist — Agent Mandate
 
-Deadline: **12 November 2026, 12:00 PM PT = 21:00 CET**. Aim to submit by
-**20:30 CET**; Devpost is slow near the cutoff.
+Official deadline: **Thursday 12 November 2026, 12:00 PM PST = 20:00 UTC =
+21:00 CET** ([Devpost](https://paypalaihackathon.devpost.com/)). Aim to submit by
+**20:30 CET**; submissions lock at the deadline.
+
+How judging works: a pass/fail fit check, then **five equally weighted**
+criteria — Technological Implementation, Design, Potential Impact,
+Innovation/Idea, Presentation. Each is one fifth, so the video is worth as much
+as the whole codebase.
 
 Legend: ✅ verified, ⬜ to do, ⚠️ risk.
 
 ## 1. Video — the only hard blocker
 
-- [ ] ⬜ Record with [DEMO_SCRIPT.md](DEMO_SCRIPT.md) (2:40, hard limit 3:00, 1080p).
-- [ ] Must be visible: **LIVE** badge + sandbox client id, a real PayPal payer
-      approval, the $45 human approval, the $99 injection denial, and the hosted
-      **Chat live with Gemini** proposal → receipt.
-- [ ] Upload **public** (unlisted does not count). Title:
+- [ ] ⬜ Record with [DEMO_SCRIPT.md](DEMO_SCRIPT.md) (2:40, hard limit 3:00,
+      1080p).
+- [ ] Must show the project **working on its own device**: LIVE badge + PayPal
+      sandbox payer approval, the $45 human approval, the $99 injection denial,
+      and the hosted **Chat live with Gemini** proposal → receipt.
+- [ ] No third-party trademarks or copyrighted music.
+- [ ] Upload to YouTube **publicly visible** (do not rely on unlisted). Title:
       `Agent Mandate — signed spending authority for AI agents on PayPal`.
       Description: repo URL, demo URL, "PayPal sandbox only".
 - [ ] Review captions (auto-captions mishear "Ed25519" and "sketchy-deals").
@@ -19,18 +27,21 @@ Legend: ✅ verified, ⬜ to do, ⚠️ risk.
       [SUBMISSION.md](SUBMISSION.md) with the real URL.
 - [ ] Watch the final upload once, end to end, before submitting.
 
-## 2. Repository and claims
+## 2. Repository — pass/fail gate
 
+- [ ] Repo **public**, with all source code, assets and run instructions.
+- [ ] ⬜ `LICENSE` file **and** the license visible in the repo **About** panel
+      (GitHub → About → ⚙ → License: MIT). Rules ask for it "in the About
+      section".
 - [ ] ✅ Typecheck, **231 tests / 20 files**, build and `npm run verify:recording`
       pass locally.
-- [ ] ✅ Test count in README badge and docs updated to 231.
 - [ ] ⬜ CI green on the submitted commit (Actions → CI).
-- [ ] ✅ No placeholders left except the video URL.
 - [ ] ✅ No secrets committed: `.env` is gitignored, `git log -p -- .env` is empty.
-- [ ] Repo public, MIT `LICENSE` visible.
-- [ ] README "Judge in 90 seconds" still opens the demo, not a wall of text.
+- [ ] ⬜ README video URL no longer a placeholder.
+- [ ] If the project predates the hackathon (opened 1 Oct 2026), the text
+      description must say what changed during the event.
 
-## 3. Hosted demo
+## 3. Hosted demo — the functional demo
 
 - [ ] ⬜ Render serves the latest `main` (`f09618c` + `0f35872`):
       **Manual Deploy → Deploy latest commit** (auto-deploy is off).
@@ -43,26 +54,31 @@ Legend: ✅ verified, ⬜ to do, ⚠️ risk.
       → **10/10 checks passed**.
 - [ ] ✅ Live chat end to end: 5.3 s turn, $45 proposal → human approval →
       receipt `ORD00000000000001` / `CAP00000000000002`, spend 4500.
-- [ ] ⚠️ Gemini free tier: quota resets at 00:00 UTC (01:00 CET). Do not burn it
-      while rehearsing.
+- [ ] ⚠️ Gemini free tier: quota resets at 00:00 UTC. Do not burn it rehearsing.
 
-## 4. Honesty claims
+## 4. Devpost form fields
 
-- [ ] ✅ `npm run verify:recording` → Ed25519 valid, widened copy rejected.
-- [ ] ✅ Say **"simulated attack"** on camera for the $99 preset; it is scripted,
-      not a live model.
-- [ ] ✅ The hosted page is labelled `replay`; the live chat is the real model
-      against simulated PayPal.
-
-## 5. Devpost form
-
-- [ ] Project name, tagline and 200-character pitch copied from
+- [ ] Project name, tagline and 200-character pitch from
       [SUBMISSION.md](SUBMISSION.md).
+- [ ] **Text description** explaining features and functionality.
+- [ ] **Functional demo**: hosted demo URL (and/or repo run instructions).
+- [ ] **Tools**: name the model/AI service and say how it is used — Gemini
+      (planner), AI SDK 7 (tool calling), PayPal Agent Toolkit (47 tools),
+      PayPal JS SDK v6 (checkout), AG Grid (ledger), React/Express.
+- [ ] ⬜ **Sponsor tools selected on the form**: **Render** and **AG Grid**.
+      Each has its own prize; a project can win at most one sponsor prize plus
+      one grand/honorable prize.
 - [ ] Gallery: `console.png`, `ledger.png`, `injection-denied.png`,
       `signature-verified.png`, `chat.png` from `docs/screenshots/`.
-- [ ] Built-with list, "Try it out" table and team section filled.
-- [ ] Video URL, public repo URL and hosted demo URL inserted.
+- [ ] Video URL, public repo URL, hosted demo URL, built-with list, team.
 - [ ] Preview the saved submission: no broken markdown, no dead links.
+
+## 5. After you press Submit
+
+- [ ] ⬜ Nothing is edited after the deadline — submissions, repo and video are
+      locked until winners are announced (**21 December 2026**).
+- [ ] Keep the demo, the Gemini key and the PayPal sandbox account alive until
+      then; judges may still open them.
 
 ## 6. Final ten minutes
 
@@ -76,3 +92,4 @@ Legend: ✅ verified, ⬜ to do, ⚠️ risk.
 1. ⬜ Video — the only real blocker.
 2. ⬜ Render **Manual Deploy** — 2 minutes, unlocks the no-cap build.
 3. ⬜ `DEMO_URL` repository variable — keeps the demo awake for judges.
+4. ⬜ License in the repo About panel + sponsor tools on the Devpost form.
