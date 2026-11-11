@@ -1,7 +1,7 @@
 # Devpost submission — Agent Mandate
 
-Copy for the PayPal AI Hackathon submission. Replace the two placeholders
-(hosted demo URL and video URL) after deploying and recording.
+Copy for the PayPal AI Hackathon submission. The hosted demo URL is final; the
+video URL is the only remaining placeholder, filled in after the upload.
 
 ## Project name
 
@@ -186,7 +186,7 @@ MCP, Docker, Render.
 
 | | |
 | --- | --- |
-| **Hosted demo (replay + optional live chat)** | `https://agent-mandate-paypal.onrender.com` — **replace after deploy** |
+| **Hosted demo (replay + optional live chat)** | https://agent-mandate-paypal.onrender.com |
 | **Video (under 3 minutes)** | `https://youtu.be/...` — **replace after upload** |
 | **Source code** | https://github.com/filippoplesca3-wq/MandateAgent |
 | **License** | MIT |

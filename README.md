@@ -27,7 +27,7 @@ approved by a human, $99 denied, and every decision in the ledger.*
 
 | | |
 | --- | --- |
-| **Live demo** | https://agent-mandate-paypal.onrender.com *(replace after deploy)* |
+| **Live demo** | https://agent-mandate-paypal.onrender.com |
 | **Video (under 3 min)** | https://youtu.be/... *(placeholder — public YouTube link)* |
 | **Source** | https://github.com/filippoplesca3-wq/MandateAgent |
 | **License** | MIT |
