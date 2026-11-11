@@ -269,8 +269,13 @@ export function ChatDialog(props: { onClose: () => void }) {
                       className={`chat-ledger-code ${
                         entry.decision.allowed ? "tone-green" : "tone-red"
                       }`}
+                      title={entry.decision.code}
                     >
-                      {entry.decision.allowed ? "ALLOWED" : entry.decision.code}
+                      {entry.decision.allowed
+                        ? "ALLOWED"
+                        : entry.decision.code.startsWith("REQUIRES_HUMAN")
+                          ? "ESCALATED"
+                          : "DENIED"}
                     </span>
                     <code>{entry.action}</code>
                     <span className="chat-ledger-desc">

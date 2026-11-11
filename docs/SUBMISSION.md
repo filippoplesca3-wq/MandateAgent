@@ -203,8 +203,9 @@ key never reaches the browser. Both paths start with a pre-seeded demo mandate.
 
 Screenshots for the Devpost gallery are in `docs/screenshots/`:
 `console.png` (the console after one run), `ledger.png` (the three outcomes),
-`injection-denied.png` (the scripted attack refused) and
-`signature-verified.png` (the mandate verified against the recording key).
+`injection-denied.png` (the scripted attack refused),
+`signature-verified.png` (the mandate verified against the recording key) and
+`chat.png` (the live chat after a purchase, with the proposal and receipt).
 
 ## Judge testing instructions
 

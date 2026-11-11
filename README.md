@@ -394,6 +394,12 @@ This is the honest split: the hosted chat proves the **model and guard** are
 real, while the video proves the **PayPal sandbox checkout** with a real payer
 approval. The public server never holds PayPal credentials.
 
+![Live chat: the model proposes the $45 headset and the visitor approves it](docs/screenshots/chat.png)
+
+*Live chat in Italian: the model checks the $120 budget, proposes the $45
+headset, the visitor clicks approve, and the guarded create/capture pair returns
+a receipt. The chat has its own ledger; the recording is untouched.*
+
 ## Deploy on Render (free)
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/filippoplesca3-wq/MandateAgent)
