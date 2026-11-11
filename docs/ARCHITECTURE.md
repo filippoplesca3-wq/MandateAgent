@@ -232,7 +232,7 @@ deliberately ignores SQLite.
 | `src/server/chat-demo.ts` | Chat sessions, arbitrary-item proposal tool, guarded confirm flow |
 | `src/mcp/` | The same guarded tools over MCP stdio |
 | `src/web/` | React console and AG Grid ledger |
-| `tests/` | 230 tests across 20 files |
+| `tests/` | 231 tests across 20 files |
 
 ## Why this shape
 

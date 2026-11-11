@@ -129,8 +129,8 @@ model.
   no credentials, but judges can press **Chat live with Gemini**, say what they
   want to buy and talk to the real model: a multi-turn conversation against
   simulated PayPal, in a throwaway store, with no cooldown, idle expiry, turn cap
-  or in-flight lock. The chat model
-  only gets a proposal tool — it may name any item and quote a USD price, never a
+  or in-flight lock. The chat model only gets a proposal tool — it may name any
+  item and quote a USD price, never a
   payment call. The server validates the quote, the guard enforces budget,
   ceiling and merchant allowlist, and the purchase runs only when the visitor
   clicks the card showing that exact price. The server holds the key; the browser
@@ -143,7 +143,7 @@ model.
 ## Accomplishments that we're proud of
 
 - A deterministic enforcement layer that a manipulated model cannot widen.
-- 230 tests across 20 files, covering signature forgery, tampered claims, revoked
+- 231 tests across 20 files, covering signature forgery, tampered claims, revoked
   and expired mandates, concurrent approvals, budget races, multi-turn chat
   isolation and single-use proposals, ledger accounting, CORS, rate limits and
   request validation.

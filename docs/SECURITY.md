@@ -86,7 +86,7 @@ rather than a public issue.
 
 ```bash
 npm ci
-npm test              # 230 tests, 20 files
+npm test              # 231 tests, 20 files
 npm run typecheck
 npm run build
 npm run check:live    # real PayPal sandbox + Gemini, sandbox only
