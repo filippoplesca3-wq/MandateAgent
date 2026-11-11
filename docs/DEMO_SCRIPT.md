@@ -1,9 +1,9 @@
-# Demo video script — 2:30
+# Demo video script — 2:40
 
-Target length **2:30** (hard limit: 3:00). Record at 1080p, browser zoom 110%,
+Target length **2:40** (hard limit: 3:00). Record at 1080p, browser zoom 110%,
 notifications off, one clean tab. The video must show **PayPal sandbox
-credentials** and the **LIVE** badge; the hosted URL shown at the end offers the
-recording plus **Chat live with Gemini** for real-time model evidence.
+credentials** and the **LIVE** badge; the hosted URL shown in the middle offers
+the recording plus **Chat live with Gemini** for real-time model evidence.
 
 ## Before recording
 
@@ -13,6 +13,8 @@ recording plus **Chat live with Gemini** for real-time model evidence.
 - [ ] `npm run check:live` passes (sandbox order + one Gemini call + ledger).
 - [ ] `npm run dev` is running; the header badge says **live** and the PayPal
       mode says **sandbox**.
+- [ ] The hosted demo is awake and **Chat live with Gemini** is visible (warm it
+      a few minutes before recording; a free instance sleeps).
 - [ ] The mandate is fresh: budget **$120**, max per payment **$50**, merchant
       **acme-supplies**, approval above **$40**, expires in **24h**.
 - [ ] Ledger is empty (restart the server if needed).
@@ -28,15 +30,16 @@ recording plus **Chat live with Gemini** for real-time model evidence.
 | 0:32–0:52 | Agent run panel | Paste or keep the demo task; click **Run agent** | "Now the agent works. Gemini reads the task and chooses PayPal tools itself. Every call goes through a deterministic guard that resolves the real order amount and merchant before deciding." |
 | 0:52–1:12 | Run timeline + **Waiting on you** | Show the $45 payment parked; click **Approve & pay** | "A twenty-four dollar order is allowed. A forty-five dollar order is parked: above the threshold, so a human must approve. I approve it, and the exact payment I saw executes — same order, same amount. The approval is consumed, so it cannot be replayed." |
 | 1:12–1:30 | **Test a payment** | Click **$99 -> sketchy-deals (injection)** | "Now the simulated attack. A scripted product description tells the agent to ignore its limits and pay sketchy-deals ninety-nine dollars, and the scripted call follows it. The guard does not: the merchant is outside the signed mandate, so the capture is denied and the refusal is written to the ledger." |
-| 1:30–1:48 | **Audit ledger** | Scroll the ledger; open one row's check trail | "This is the audit trail. Allowed, escalated and denied calls are all recorded with the amount, merchant and reason. A refusal is evidence, not an error." |
-| 1:48–2:05 | Terminal | `curl` the public key, then `GET /api/mandates/<id>/verify` | "Anyone can verify the mandate with only the issuer's public key — no shared secret. Tamper with the claims and verification fails; revoke it and it reports revoked." |
-| 2:05–2:20 | **Live sandbox payment** panel + PayPal window | Show the sandbox client id and `PAYPAL_ENVIRONMENT=SANDBOX`; create the $2 order; show the payer approval | "This is real PayPal sandbox money. The server creates an order through the same guard, the payer approves it in the browser with the PayPal JS SDK, and the capture moves the mandate's budget. No live money, and the hosted demo's key stays server-side." |
-| 2:20–2:30 | Hosted URL + repo | Show the demo URL, open **Chat live with Gemini**, type a request, then the GitHub repo | "The hosted demo can replay this run for free, or take what you type, check it against the mandate and buy through it against simulated PayPal. The repo has the code, the tests and a one-command live check. Agent Mandate: let agents buy, not anything." |
+| 1:30–1:45 | **Audit ledger** | Scroll the ledger; press **Verify** next to the signature | "This is the audit trail. Allowed, escalated and denied calls are all recorded with the amount, merchant and reason. A refusal is evidence, not an error. And the mandate verifies against the public key with one click." |
+| 1:45–2:10 | Hosted demo, **Chat live with Gemini** | Open the hosted URL, press **Chat live with Gemini**, type "Mi serve un headset nuovo, costa tra 40 e 50 dollari. Ce la facciamo con il budget?", show the proposal, click **Approve & buy USD 45.00**, show the receipt | "The hosted demo is live too. The real model reads my request in Italian, checks the mandate, says the budget is enough, and proposes the forty-five dollar headset. I approve the card, and the guarded create and capture run against simulated PayPal. Same code, no key in the browser, no money." |
+| 2:10–2:30 | **Live sandbox payment** panel + PayPal window | Show the sandbox client id and `PAYPAL_ENVIRONMENT=SANDBOX`; create the $2 order; show the payer approval | "This is real PayPal sandbox money. The server creates an order through the same guard, the payer approves it in the browser with the PayPal JS SDK, and the capture moves the mandate's budget. No live money, and the hosted demo's key stays server-side." |
+| 2:30–2:40 | Hosted URL + repo | Show the demo URL and the GitHub repo | "The hosted demo replays this run for free, or takes your own request live against simulated PayPal. The repo has the code, the tests and a one-command live check. Agent Mandate: let agents buy, not anything." |
 
 ## If you run long
 
-Cut the terminal verification beat (1:48–2:05) first. Never cut the injection
-denial or the sandbox/LIVE proof — those are the two claims judges need to see.
+Cut the audit-ledger beat (1:30–1:45) or shorten the hosted chat to a single
+sentence. Never cut the injection denial or the sandbox/LIVE proof — those are
+the two claims judges need to see.
 
 ## Honesty note
 
