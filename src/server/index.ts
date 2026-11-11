@@ -55,6 +55,7 @@ const liveKey = process.env["GOOGLE_GENERATIVE_AI_API_KEY"]?.trim()
 const liveDemoEnabled = process.env["DEMO_LIVE"] === "1" && Boolean(liveKey)
 const liveDailyCap = Number(process.env["DEMO_LIVE_DAILY_CAP"] ?? 10)
 const liveCooldownMs = Number(process.env["DEMO_LIVE_COOLDOWN_SECONDS"] ?? 120) * 1_000
+const liveChatMaxTurns = Number(process.env["DEMO_CHAT_MAX_TURNS"] ?? 4)
 
 const store = new Store(
   signingKey,
@@ -164,6 +165,9 @@ const { app } = createApp({
             ? { cooldownMs: liveCooldownMs }
             : {}),
           ...(process.env["AGENT_MODEL"] ? { model: process.env["AGENT_MODEL"] } : {}),
+          ...(Number.isFinite(liveChatMaxTurns) && liveChatMaxTurns > 0
+            ? { chatMaxTurns: liveChatMaxTurns }
+            : {}),
         },
       }
     : {}),

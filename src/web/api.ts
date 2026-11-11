@@ -171,6 +171,68 @@ export interface LiveRunResponse {
   error?: string
 }
 
+export type ChatProposalStatus = "proposed" | "purchasing" | "purchased" | "failed"
+
+/** A catalog item the agent proposed. The price comes from the server. */
+export interface ChatProposal {
+  id: string
+  itemId: string
+  name: string
+  description: string
+  amount: number
+  currency: string
+  merchant: string
+  allowed: boolean
+  requiresApproval: boolean
+  code: string
+  reason: string
+  status: ChatProposalStatus
+}
+
+export interface ChatReceipt {
+  proposalId: string
+  itemId: string
+  name: string
+  amount: number
+  currency: string
+  merchant: string
+  orderId: string
+  captureId?: string
+  approvals: number
+}
+
+export interface ChatTurnResponse {
+  ok: boolean
+  live: true
+  sessionId: string
+  model: string
+  text: string
+  proposal: ChatProposal | null
+  turns: number
+  turnsRemaining: number
+  durationMs: number
+  snapshot: Snapshot
+  verification: {
+    signatureValid: boolean
+    claimsValid: boolean
+    reason?: string
+  }
+  error?: string
+}
+
+export interface ChatConfirmResponse {
+  ok: boolean
+  live: true
+  receipt: ChatReceipt
+  snapshot: Snapshot
+  verification: {
+    signatureValid: boolean
+    claimsValid: boolean
+    reason?: string
+  }
+  error?: string
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,

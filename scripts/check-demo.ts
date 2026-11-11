@@ -7,8 +7,8 @@
  *
  * The script checks the claims a judge would otherwise have to take on trust:
  * the mandate is signed, the published key verifies it, a widened copy is
- * rejected, a replay refuses writes, and the live-run route is present and
- * refuses a non-JSON probe without spending a run. It exits non-zero on the
+ * rejected, a replay refuses writes, and the live routes are present and
+ * refuse a non-JSON probe without spending a run. It exits non-zero on the
  * first failure, so it can run after a deploy or in CI.
  */
 
@@ -203,5 +203,15 @@ if (liveProbe.status !== 415) {
   fail("live route", `expected 415 for a non-JSON POST, got ${liveProbe.status}`)
 }
 pass("live route", "non-JSON POST refused with 415")
+
+const chatProbe = await call<{ ok?: boolean; error?: string }>("/api/demo/chat", {
+  method: "POST",
+  headers: { "content-type": "text/plain" },
+  body: "probe",
+})
+if (chatProbe.status !== 415) {
+  fail("chat route", `expected 415 for a non-JSON POST, got ${chatProbe.status}`)
+}
+pass("chat route", "non-JSON POST refused with 415")
 
 console.log(`\n${passed} checks passed. The demo proves what it claims.\n`)

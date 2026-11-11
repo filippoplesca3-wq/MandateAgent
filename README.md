@@ -5,7 +5,7 @@
 [![CI](https://github.com/filippoplesca3-wq/MandateAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/filippoplesca3-wq/MandateAgent/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/filippoplesca3-wq/MandateAgent?label=release)](https://github.com/filippoplesca3-wq/MandateAgent/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Tests: 209](https://img.shields.io/badge/tests-209%20passing-brightgreen.svg)](#tests)
+[![Tests: 227](https://img.shields.io/badge/tests-227%20passing-brightgreen.svg)](#tests)
 ![PayPal AI Hackathon 2026](https://img.shields.io/badge/PayPal%20AI%20Hackathon-2026-003087)
 
 Agent Mandate lets an AI agent buy things for a person without ever holding the
@@ -16,8 +16,9 @@ resolves the real order amount and merchant, checks it against the signed claims
 records the decision in an append-only ledger, and refuses anything outside the
 bounds. The model can be prompt-injected, confused or simply wrong; the mandate
 still holds. The hosted demo replays a real Gemini run, and a judge can press
-**Run live with Gemini** to watch the real model run now against simulated
-PayPal. The local live path creates and captures real PayPal **sandbox** orders.
+**Chat live with Gemini** to talk to the real model and buy through the mandate
+against simulated PayPal. The local live path creates and captures real PayPal
+**sandbox** orders.
 
 ![Agent Mandate console after a recorded run](docs/screenshots/console.png)
 
@@ -37,11 +38,12 @@ approved by a human, $99 denied, and every decision in the ledger.*
    `replay`; the banner names the model and the capture date. No key, no API
    calls. If the instance is asleep, `npm ci && npm run demo` serves the same
    recording at http://localhost:3001.
-2. **Or run the model live.** Press **Run live with Gemini** in the banner. The
-   server runs a real Gemini agent against simulated PayPal in a throwaway
-   store, then shows the fresh mandate, the guarded tool calls, the $99 denial
-   and a server-computed signature check. No PayPal credentials are involved
-   and no money can move. Runs are capped per day and per visitor.
+2. **Or talk to the model live.** Press **Chat live with Gemini** in the banner
+   and say what you want to buy in your own words. The model checks the mandate,
+   answers in your language and proposes one catalog item; nothing is paid until
+   you click the proposal card. The chat gets its own mandate, signing key and
+   ledger, so the recording is untouched. No PayPal credentials are involved and
+   no money can move. Chats are capped per day, per visitor and per session.
 3. **Read the ledger.** One run produces all three outcomes: $24 allowed, $45
    escalated and approved, $99 denied at `sketchy-deals`.
 4. **Try a policy check.** The **Test a payment** presets run a real dry-run
@@ -49,7 +51,7 @@ approved by a human, $99 denied, and every decision in the ledger.*
 5. **Verify the mandate.** Press **Verify** next to the signature. The console
    shows `SIGNATURE VALID · Ed25519 · recorded key`: the mandate on screen
    checks out against the key the recording was signed with.
-6. **Run the proof.** `npm ci && npm test` (209 tests),
+6. **Run the proof.** `npm ci && npm test` (227 tests),
    `npm run verify:recording` (offline Ed25519 check, no server),
    `npm run check:demo -- <url>` (audits the demo's own claims) and
    `npm run check:live` (real PayPal sandbox + Gemini).
@@ -100,7 +102,7 @@ Vitest · MCP
 
 | Criterion | Where to look |
 | --- | --- |
-| **Technological implementation** | 209 tests across 19 files, including concurrent approvals, budget races, signature forgery, tampered claims, revoked and expired mandates, CORS, rate limits, request validation and ledger accounting. `npm test`, `npm run typecheck`, `npm run build`. |
+| **Technological implementation** | 227 tests across 20 files, including concurrent approvals, budget races, signature forgery, tampered claims, revoked and expired mandates, multi-turn chat isolation and single-use proposals, CORS, rate limits, request validation and ledger accounting. `npm test`, `npm run typecheck`, `npm run build`. |
 | **Use of PayPal** | Real Agent Toolkit tools, sandbox order creation and capture, JS SDK v6 checkout, sandbox decline path, signature-verified webhooks, public-key mandate verification. See "How PayPal is used" and "Live mode check". |
 | **Design** | One deterministic core, swappable clients. The guard resolves amounts instead of trusting the model; the ledger records refusals as evidence; the console shows the mandate, run timeline, decisions and ledger live. |
 | **Potential impact** | Gives buyers a safe way to delegate spending and gives merchants a verifiable signal that an agent is authorised. The same mandate artefact works for procurement, subscriptions and expense limits. |
@@ -349,33 +351,46 @@ npm run record            # writes replays/demo-run.json
 A visitor who wants to drive a live agent can paste their own Gemini key into the
 run panel. It is used for that single request and never stored or logged.
 
-### Run live on the hosted demo
+### Chat live on the hosted demo
 
 A recording is a fallback, not the whole demo. When the operator sets
-`DEMO_LIVE=1` and a server-side Gemini key, the banner also offers **Run live
-with Gemini**. The dialog asks what to buy: type a task or pick a preset, then
-press **Ask Gemini to run it**. That calls `POST /api/demo/live-run` with
-`{ "task": "…" }`, and the server:
+`DEMO_LIVE=1` and a server-side Gemini key, the banner also offers **Chat live
+with Gemini**. The visitor writes what they want in their own words — "I want a
+new headset, it costs between $40 and $50, do we have enough budget?" — and the
+server:
 
-- creates a fresh in-memory `Store`, signing key and demo mandate for that one
-  request — the recording, its budget and its approvals are untouched;
-- runs the real agent against `createSimulatedTools`, so PayPal is local and no
-  credentials or money are involved;
-- returns the run, the resulting snapshot and a server-computed Ed25519 check
-  of the fresh mandate.
+- creates a fresh in-memory `Store`, signing key and demo mandate for that chat,
+  so the recording, its budget and its approvals are untouched;
+- gives the model exactly one tool, `propose_purchase`, which can only choose an
+  id from a server-side catalog. The model never sees a payment tool and never
+  supplies a price;
+- previews the policy decision and returns a proposal card. Nothing is paid until
+  the visitor clicks it;
+- on click, runs the guarded `create_order` → `pay_order` pair for that exact
+  catalog item, consuming the parked human approvals rather than bypassing them;
+- returns the receipt, the isolated ledger and a server-computed Ed25519 check of
+  the chat's fresh mandate.
 
-The task is capped at 600 characters and the server trims it. Presets cover an
-allowed purchase, one that needs human approval, one above the per-transaction
-ceiling and one at a merchant outside the allowlist, so a judge can see the
-guard refuse a request they wrote themselves.
+`POST /api/demo/chat` takes `{ "message": "…" }` and returns a `sessionId`;
+later turns send `{ "sessionId": "…", "message": "…" }`. `POST
+/api/demo/chat/confirm` takes `{ "sessionId": "…", "proposalId": "…" }`. The
+message is capped at 500 characters, each session gets four user turns by
+default, and an idle session expires after ten minutes.
+
+The catalog is authoritative: a $45 studio headset sits above the $40
+auto-approval threshold, so the guard parks it for human approval and the click
+releases it; a $75 monitor is refused by the per-transaction ceiling before any
+PayPal call. The model is told to read the guard's decision and explain it
+honestly, including refusals.
 
 The Gemini key never reaches the browser and is never included in a response.
-Cost is bounded three ways: `DEMO_LIVE_DAILY_CAP` runs per UTC day (default 10),
-`DEMO_LIVE_COOLDOWN_SECONDS` between runs from one address (default 120), and one
-run in flight at a time. With no key, or with `DEMO_LIVE` unset, the endpoint
-answers `503` and the recording remains the only path.
+Cost is bounded four ways: `DEMO_LIVE_DAILY_CAP` chats per UTC day (default 10,
+shared with one-shot live runs), `DEMO_LIVE_COOLDOWN_SECONDS` between new chats
+from one address (default 120), `DEMO_CHAT_MAX_TURNS` per session (default 4),
+and one live request in flight at a time. With no key, or with `DEMO_LIVE`
+unset, both endpoints answer `503` and the recording remains the only path.
 
-This is the honest split: the hosted live run proves the **model and guard** are
+This is the honest split: the hosted chat proves the **model and guard** are
 real, while the video proves the **PayPal sandbox checkout** with a real payer
 approval. The public server never holds PayPal credentials.
 
@@ -389,12 +404,12 @@ approval. The public server never holds PayPal credentials.
 - start: `npm start`
 - env: `REPLAY_FILE=replays/demo-run.json`, plus a Render-generated
   `MANDATE_SIGNING_KEY`
-- optional live runs: `DEMO_LIVE=1`, `DEMO_LIVE_DAILY_CAP=10`,
-  `DEMO_LIVE_COOLDOWN_SECONDS=120`, and `GOOGLE_GENERATIVE_AI_API_KEY` set as a
-  secret in the Render dashboard
+- optional live chat: `DEMO_LIVE=1`, `DEMO_LIVE_DAILY_CAP=10`,
+  `DEMO_LIVE_COOLDOWN_SECONDS=120`, `DEMO_CHAT_MAX_TURNS=4`, and
+  `GOOGLE_GENERATIVE_AI_API_KEY` set as a secret in the Render dashboard
 
 No PayPal credentials are required: replay mode never calls PayPal, and the
-hosted live run always uses the simulated tool doubles. The hosted demo is
+hosted live chat always uses the simulated tool doubles. The hosted demo is
 **read-only**: it starts with a pre-seeded mandate, the issue/revoke/approve
 buttons are disabled, and the API refuses writes with `409`. Render's free web
 services sleep after inactivity, so the first request can take 30–60 seconds to
@@ -527,8 +542,8 @@ npm run check:demo -- https://agent-mandate-paypal.onrender.com
 ```
 
 It checks health, the published Ed25519 key, stored and posted verification,
-tamper rejection, read-only writes and the live-run route, then exits non-zero if
-any claim fails.
+tamper rejection, read-only writes and the live/chat routes, then exits non-zero
+if any claim fails.
 
 To verify the recording itself without trusting the server at all:
 
@@ -596,7 +611,7 @@ about real agents.
 ## Tests
 
 ```bash
-npm test          # 209 tests, 19 files
+npm test          # 227 tests, 20 files
 npm run typecheck
 npm run build
 npm run verify    # test + build
@@ -630,6 +645,10 @@ every push (`.github/workflows/ci.yml`).
 | `STORE_DB` | no | SQLite file path, default `data/agent-mandate.sqlite`. |
 | `REPLAY_FILE` | no | Serve a recorded run instead of calling any API. |
 | `REPLAY_FRAME_MS` | no | Playback beat per frame, default `1200`. |
+| `DEMO_LIVE` | no | `1` enables the live chat when a Gemini key is present. |
+| `DEMO_LIVE_DAILY_CAP` | no | Live chats per UTC day, default 10. |
+| `DEMO_LIVE_COOLDOWN_SECONDS` | no | Minimum gap between new chats from one address, default 120. |
+| `DEMO_CHAT_MAX_TURNS` | no | User turns per chat session, default 4. |
 | `PORT` | no | API port, default `3001`. |
 
 On the Gemini free tier the daily request cap is small and counted **per
@@ -642,7 +661,7 @@ use needs billing enabled on the key.
 src/core/      types, canonical JSON, Ed25519 mandates, policy, ledger, store, persistence, trust
 src/paypal/    guarded tools, simulator, live toolkit wiring
 src/agent/     AI SDK adapter, system prompt, model fallback
-src/server/    Express API, SSE stream, replay player
+src/server/    Express API, SSE stream, replay player, live chat
 src/mcp/       the same guarded tools served over MCP stdio
 src/web/       React console, AG Grid ledger
 replays/       recorded run served by the hosted demo
@@ -663,7 +682,7 @@ scripts/record.ts one real run, captured as replay frames
 | PayPal order creation and capture | **Real sandbox calls** in live mode; `npm run check:live` proves the path | `scripts/check-live.ts`, ledger |
 | Prompt injection | **Simulated attack**: scripted description and scripted call, no live model | `/api/demo/injection`, `tests/app.test.ts` |
 | Seller trust scores | **Seeded fixtures** except `mandateActive`, which is computed from the store | `src/server/demo.ts` |
-| Hosted demo | **Read-only replay**; no PayPal or Gemini credentials | `DEPLOY.md` |
+| Hosted demo | **Read-only replay** plus optional **live chat** with simulated PayPal; no PayPal credentials | `DEPLOY.md` |
 
 ## Notes and limits
 

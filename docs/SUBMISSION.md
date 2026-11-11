@@ -50,9 +50,10 @@ happens:
 
 The console shows the mandate, the live run, the approval queue, the audit ledger
 and a seller-side trust score. A hosted replay demonstrates the whole flow with
-no credentials, and a judge can press **Run live with Gemini** to write a task
-and watch the real model run against simulated PayPal. A local live path creates
-and captures real PayPal **sandbox** orders.
+no credentials, and a judge can press **Chat live with Gemini** to say what they
+want to buy in their own words, watch the real model check the mandate and
+propose an item, then approve the purchase against simulated PayPal. A local live
+path creates and captures real PayPal **sandbox** orders.
 
 ## How we built it
 
@@ -125,25 +126,29 @@ model.
 - **Trusting the model's numbers.** The model can quote any `itemTotal`. The
   guard recomputes the total and reads order amounts back from PayPal instead.
 - **Live vs. hosted.** The hosted build defaults to a recording so it works with
-  no credentials, but judges can press **Run live with Gemini**, write what to
-  buy and watch the real model plan it: a real model run against simulated
-  PayPal, in a throwaway store, capped per day and per visitor. The server holds
-  the key; the browser never sees it. Real PayPal sandbox checkout stays local
-  and is shown in the video.
+  no credentials, but judges can press **Chat live with Gemini**, say what they
+  want to buy and talk to the real model: a multi-turn conversation against
+  simulated PayPal, in a throwaway store, capped per day, per visitor and per
+  session. The chat model only gets a proposal tool — it can pick a catalog id,
+  never a price and never a payment call — and the purchase runs only when the
+  visitor clicks the card. The server holds the key; the browser never sees it.
+  Real PayPal sandbox checkout stays local and is shown in the video.
 - **Free-tier limits.** Gemini's free tier caps requests per day per model, so
-  the agent falls back across models, the hosted live run is capped, and the
+  the agent falls back across models, the hosted chat is capped, and the
   recording remains the zero-cost fallback.
 
 ## Accomplishments that we're proud of
 
 - A deterministic enforcement layer that a manipulated model cannot widen.
-- 209 tests across 19 files, covering signature forgery, tampered claims, revoked
-  and expired mandates, concurrent approvals, budget races, ledger accounting,
-  CORS, rate limits and request validation.
+- 227 tests across 20 files, covering signature forgery, tampered claims, revoked
+  and expired mandates, concurrent approvals, budget races, multi-turn chat
+  isolation and single-use proposals, ledger accounting, CORS, rate limits and
+  request validation.
 - A real PayPal sandbox path: order creation, browser approval, capture, declines
   and signature-verified webhooks.
-- A hosted demo that needs no credentials, still shows the real run, and can run
-  the real model live on demand without exposing the key or moving money.
+- A hosted demo that needs no credentials, still shows the real run, and lets a
+  visitor talk to the real model and buy through the mandate live, without
+  exposing the key or moving money.
 - The recorded mandate verifies offline against the key embedded in the file, and
   a one-cent-wider copy fails; CI runs that proof on every push.
 - One artefact — the mandate — that serves buyers, agents and merchants.
@@ -178,7 +183,7 @@ MCP, Docker, Render.
 
 | | |
 | --- | --- |
-| **Hosted demo (replay + optional live run)** | `https://agent-mandate-paypal.onrender.com` — **replace after deploy** |
+| **Hosted demo (replay + optional live chat)** | `https://agent-mandate-paypal.onrender.com` — **replace after deploy** |
 | **Video (under 3 minutes)** | `https://youtu.be/...` — **replace after upload** |
 | **Source code** | https://github.com/filippoplesca3-wq/MandateAgent |
 | **License** | MIT |
@@ -190,10 +195,11 @@ MCP, Docker, Render.
 
 The hosted demo serves a **read-only recording of a real Gemini run**, clearly
 labelled `replay` in the header. It needs no PayPal credentials. When the
-operator configures a server-side Gemini key, the banner also offers **Run live
-with Gemini**: the real model runs against simulated PayPal in a fresh,
-throwaway store, and the key never reaches the browser. Both paths start with a
-pre-seeded demo mandate.
+operator configures a server-side Gemini key, the banner also offers **Chat live
+with Gemini**: the real model answers in the visitor's language, checks the
+mandate and proposes one catalog item, and the guarded purchase runs only after
+the visitor clicks the proposal. Each chat gets a fresh, throwaway store, and the
+key never reaches the browser. Both paths start with a pre-seeded demo mandate.
 
 Screenshots for the Devpost gallery are in `docs/screenshots/`:
 `console.png` (the console after one run), `ledger.png` (the three outcomes),
@@ -208,15 +214,16 @@ Screenshots for the Devpost gallery are in `docs/screenshots/`:
 2. Press **Play recording** to watch the run: a $24 order is allowed, a $45
    order is escalated, a $99 payment to `sketchy-deals` is denied, and every
    decision lands in the audit ledger.
-3. Press **Run live with Gemini** in the banner (shown when the deployment has a
-   server-side key). Type what to buy, or pick a preset, and press **Ask Gemini
-   to run it**. This runs the real model now, against simulated PayPal, in a
-   fresh store with a fresh mandate. The dialog shows the task you asked for, the
-   model's tool calls, the resulting budget and a server-computed signature
-   check. The $75 preset is refused above the per-transaction ceiling; the
-   `sketchy-deals` preset is refused by the merchant allowlist; the $45 preset is
-   parked for human approval. Nothing it does changes the recording, and no money
-   can move. Runs are capped per day and per visitor; a `429` explains which
+3. Press **Chat live with Gemini** in the banner (shown when the deployment has a
+   server-side key). Write what you want to buy in your own words — for example
+   "I want a new headset, it costs between $40 and $50, is the budget enough?".
+   The real model answers in your language, checks the mandate and proposes one
+   catalog item. The $75 monitor is refused above the per-transaction ceiling
+   before any PayPal call; the $45 headset is parked for human approval. Click
+   the proposal card to approve it, and the guarded `create_order` →
+   `pay_order` pair runs against simulated PayPal, returning a receipt and the
+   chat's own ledger. Nothing changes the recording, and no money can move.
+   Chats are capped per day, per visitor and per session; a `429` explains which
    limit was hit.
 4. Use the **Test a payment** presets. The $12, $45 and $200 presets run a live
    dry-run policy check against the pre-seeded mandate. The **$99 ->
@@ -238,7 +245,7 @@ Screenshots for the Devpost gallery are in `docs/screenshots/`:
    Or run the whole audit in one command:
    `npm run check:demo -- https://agent-mandate-paypal.onrender.com`. It checks health,
    the published key, both verification paths, tamper rejection, the read-only
-   write refusal and the live-run route (without spending a run), and exits
+   write refusal and the live/chat routes (without spending a run), and exits
    non-zero on any failure.
 
    For a check that does not trust the server at all, run
@@ -253,7 +260,7 @@ Screenshots for the Devpost gallery are in `docs/screenshots/`:
    locally with no `.env` at all.
 7. The live PayPal sandbox checkout is local-only because it needs sandbox
    credentials. The video shows the **LIVE** badge and a real sandbox payer
-   approval, then the full create → approve → capture flow. The hosted live run
+   approval, then the full create → approve → capture flow. The hosted live chat
    is the model half; the video is the payment-rail half.
 8. State is in memory and the free instance sleeps. A restart starts a fresh
    pre-seeded mandate; that is expected, not a failure.

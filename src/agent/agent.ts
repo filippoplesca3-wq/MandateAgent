@@ -11,7 +11,7 @@
  * can be dropped in without touching the enforcement layer.
  */
 
-import { generateText, stepCountIs, type ToolSet as AgentToolSet } from "ai"
+import { generateText, stepCountIs, type ModelMessage, type ToolSet as AgentToolSet } from "ai"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { formatMoney, remainingBudget } from "../core/mandate.js"
 import type { Store } from "../core/store.js"
@@ -205,6 +205,93 @@ async function runAgentOnModel(
     durationMs: Date.now() - started,
     ...(typeof usage?.inputTokens === "number" ? { inputTokens: usage.inputTokens } : {}),
     ...(typeof usage?.outputTokens === "number" ? { outputTokens: usage.outputTokens } : {}),
+  }
+}
+
+/** One chat turn: a user message, an optional proposal tool call, a reply. */
+export interface ChatTurnInput {
+  apiKey: string
+  model?: string
+  maxSteps?: number
+  system: string
+  messages: ModelMessage[]
+  tools: AgentToolSet
+}
+
+export interface ChatToolCall {
+  toolName: string
+  input: unknown
+  output?: string
+}
+
+export interface ChatTurnOutput {
+  model: string
+  text: string
+  durationMs: number
+  toolCalls: ChatToolCall[]
+}
+
+/**
+ * Run a conversational turn with the same model fallback as the one-shot
+ * agent. The tool set is supplied by the caller: the chat phase only gets
+ * `propose_purchase`, never a payment tool.
+ */
+export async function runChatTurn(input: ChatTurnInput): Promise<ChatTurnOutput> {
+  if (!input.apiKey) {
+    throw new Error(
+      "runChatTurn: no Google API key. Set GOOGLE_GENERATIVE_AI_API_KEY to run the agent.",
+    )
+  }
+
+  const preferred = input.model ?? process.env.AGENT_MODEL
+  const candidates = preferred ? [preferred] : DEFAULT_MODELS
+
+  let lastError: unknown
+  for (const modelId of candidates) {
+    try {
+      return await runChatTurnOnModel(input, modelId)
+    } catch (error) {
+      lastError = error
+      if (!isRetryableElsewhere(error)) break
+    }
+  }
+
+  throw new Error(readableAgentError(lastError, candidates.join(", ")))
+}
+
+async function runChatTurnOnModel(
+  input: ChatTurnInput,
+  modelId: string,
+): Promise<ChatTurnOutput> {
+  const started = Date.now()
+  const google = createGoogleGenerativeAI({ apiKey: input.apiKey })
+
+  const result = await generateText({
+    model: google(modelId),
+    system: input.system,
+    messages: input.messages,
+    tools: input.tools,
+    stopWhen: stepCountIs(input.maxSteps ?? 2),
+    maxRetries: 4,
+  })
+
+  const toolCalls: ChatToolCall[] = result.steps.flatMap((step) =>
+    step.toolCalls.map((call) => {
+      const match = step.toolResults.find((item) => item.toolCallId === call.toolCallId)
+      const output = match ? stringifyOutput(match.output) : undefined
+      return {
+        toolName: call.toolName,
+        input: call.input,
+        ...(output !== undefined ? { output } : {}),
+      }
+    }),
+  )
+
+  return {
+    model: modelId,
+    text: result.text,
+    durationMs: Date.now() - started,
+    toolCalls,
   }
 }
 

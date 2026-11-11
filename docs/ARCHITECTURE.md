@@ -179,24 +179,33 @@ recording key when serving a replay. That is why a visitor can verify the
 mandate on screen against the key the demo publishes, and why a widened copy
 of the same envelope still fails.
 
-### Live runs on a replay deployment
+### Live chat on a replay deployment
 
-A recording is static, so a judge cannot watch the model think. When the
-operator sets `DEMO_LIVE=1` and a server-side Gemini key, the same process also
-exposes `POST /api/demo/live-run`. The route calls `runLiveDemo` in
-`src/server/live-demo.ts`, which builds a **fresh** `Store` with a random
-signing secret, issues a new demo mandate, seeds the same orders and trust
-history, wraps `createSimulatedTools` in the normal guard, and runs the normal
-agent loop. The response carries the run, the resulting snapshot and a
-server-computed signature check.
+A recording is static, so a judge cannot talk to the model. When the operator
+sets `DEMO_LIVE=1` and a server-side Gemini key, the same process also exposes
+`POST /api/demo/chat` and `POST /api/demo/chat/confirm`. The route calls
+`takeChatTurn` in `src/server/chat-demo.ts`, which builds a **fresh** `Store`
+with a random signing secret, issues a new demo mandate, seeds the same orders
+and trust history, wraps `createSimulatedTools` in the normal guard, and runs a
+conversational turn with the normal model fallback.
 
-Isolation is structural: the live run never receives the replay player or the
-recorded store, so it cannot mutate the recording, consume its budget or leave
+The chat model gets exactly one tool, `propose_purchase`. It can only name an id
+from a server-side catalog; the price, merchant and currency are looked up on
+the server. The tool previews the policy decision and stores a proposal. It
+cannot create an order, capture a payment or invent an amount. When the visitor
+clicks the proposal, `confirmChatProposal` executes the guarded `create_order` →
+`pay_order` pair for that exact catalog item, consuming the parked human
+approvals rather than bypassing them.
+
+Isolation is structural: every chat has its own store, signing key, mandate,
+approvals and ledger, and never receives the replay player or the recorded
+store. A chat cannot mutate the recording, spend another chat's budget or leave
 approvals behind. The key lives in the process environment and is only read by
-the route; it is never serialized into a snapshot or a response. Three limits
-bound cost: a global daily cap, a per-IP cooldown and one in-flight run. The
-route is disabled when the key or `DEMO_LIVE` is absent, and PayPal is always
-simulated on this path.
+the route; it is never serialized into a snapshot or a response. Four limits
+bound cost: a global daily cap shared with one-shot live runs, a per-IP cooldown
+on new chats, a per-session turn cap and one in-flight request. The routes are
+disabled when the key or `DEMO_LIVE` is absent, and PayPal is always simulated on
+this path.
 
 ## Persistence
 
@@ -218,10 +227,11 @@ deliberately ignores SQLite.
 | `src/paypal/simulated.ts` | Tool doubles built from the real toolkit schemas |
 | `src/paypal/webhook.ts` | PayPal webhook parsing and signature verification |
 | `src/agent/` | Gemini adapter and system prompt; no policy logic |
-| `src/server/` | Express API, SSE, replay player, live run, demo seed |
+| `src/server/` | Express API, SSE, replay player, live chat, demo seed |
+| `src/server/chat-demo.ts` | Chat sessions, catalog, proposal tool, guarded confirm flow |
 | `src/mcp/` | The same guarded tools over MCP stdio |
 | `src/web/` | React console and AG Grid ledger |
-| `tests/` | 209 tests across 19 files |
+| `tests/` | 227 tests across 20 files |
 
 ## Why this shape
 

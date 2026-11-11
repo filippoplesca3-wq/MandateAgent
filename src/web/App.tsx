@@ -17,11 +17,15 @@ import {
   type ColDef,
   type ICellRendererParams,
 } from "ag-grid-community"
-import { adminApi, api, useLiveState } from "./api.js"
+import { adminApi, api, ApiError, useLiveState } from "./api.js"
+import { ChatDialog } from "./ChatDialog.js"
 import type {
   AgentRunResponse,
+  ChatConfirmResponse,
+  ChatProposal,
+  ChatReceipt,
+  ChatTurnResponse,
   LedgerEntry,
-  LiveRunResponse,
   Money,
   PendingApproval,
   Snapshot,
@@ -554,240 +558,6 @@ function StepRow(props: { toolName: string; output?: string }) {
       <span className={`step-code code-${tone}`}>{parsed?.code ?? "—"}</span>
       {parsed?.reason ? <span className="step-reason">{parsed.reason}</span> : null}
     </li>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Live run
-// ---------------------------------------------------------------------------
-
-/**
- * The hosted demo's one real-model path.
- *
- * The recording is the fallback. This dialog asks the server for a fresh run:
- * a new store, a new mandate and a new signing key, real Gemini, simulated
- * PayPal. Nothing it does can change the recording or spend real money.
- *
- * The visitor writes the task, so the run is a request the agent interprets
- * rather than a script it replays. The presets are there for anyone who does
- * not want to compose a prompt; the last two are refused by the mandate.
- */
-const LIVE_DEFAULT_TASK =
-  "Buy 2 reams of A4 paper from acme-supplies and pay for them, about 12.00 USD each."
-
-const LIVE_PRESETS: { label: string; task: string }[] = [
-  {
-    label: "Paper · $24",
-    task: LIVE_DEFAULT_TASK,
-  },
-  {
-    label: "Monitor stand · $45 (approval)",
-    task: "Buy one monitor stand from acme-supplies for 45.00 USD and pay for it.",
-  },
-  {
-    label: "Desk lamp · $75 (denied)",
-    task: "Buy a desk lamp from acme-supplies for 75.00 USD and pay for it.",
-  },
-  {
-    label: "Cables · sketchy-deals (denied)",
-    task: "Buy 30.00 USD of cables from sketchy-deals and pay for them.",
-  },
-]
-
-function LiveRunDialog(props: { onClose: () => void }) {
-  const { onClose } = props
-  const [task, setTask] = useState(LIVE_DEFAULT_TASK)
-  const [asked, setAsked] = useState<string | null>(null)
-  const [running, setRunning] = useState(false)
-  const [elapsed, setElapsed] = useState(0)
-  const [result, setResult] = useState<LiveRunResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const startedAt = useRef(0)
-
-  useEffect(() => {
-    if (!running) return
-    const timer = setInterval(() => setElapsed(Date.now() - startedAt.current), 100)
-    return () => clearInterval(timer)
-  }, [running])
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose()
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [onClose])
-
-  const run = useCallback(async () => {
-    const prompt = task.trim()
-    if (!prompt) return
-    setRunning(true)
-    setError(null)
-    setResult(null)
-    setAsked(prompt)
-    startedAt.current = Date.now()
-    setElapsed(0)
-    try {
-      const response = await api<LiveRunResponse>("/api/demo/live-run", {
-        method: "POST",
-        body: JSON.stringify({ task: prompt }),
-      })
-      setResult(response)
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught))
-    } finally {
-      setRunning(false)
-    }
-  }, [task])
-
-  const steps = result?.run.steps.flatMap((step) =>
-    step.toolCalls.map((call, index) => ({
-      key: `${step.index}-${index}`,
-      toolName: call.toolName,
-      output: call.output,
-    })),
-  )
-
-  return (
-    <div
-      className="modal-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose()
-      }}
-    >
-      <div className="modal" role="dialog" aria-modal="true" aria-label="Live agent run">
-        <header className="modal-head">
-          <div>
-            <h2>
-              <span className="live-badge">
-                <span className="pulse" /> LIVE
-              </span>
-              Tell the agent what to buy
-            </h2>
-            <p className="panel-sub">
-              Real Gemini, simulated PayPal. Write a task or pick an example: the model plans the
-              steps and the mandate decides what is allowed. This run gets its own mandate, signing
-              key and ledger; it cannot touch the recording, and no money can move.
-            </p>
-          </div>
-          <button className="btn ghost sm" onClick={onClose}>
-            Close
-          </button>
-        </header>
-
-        <div className="live-prompt">
-          <label className="live-prompt-label" htmlFor="live-task">
-            Your task
-          </label>
-          <textarea
-            id="live-task"
-            className="task-input"
-            value={task}
-            onChange={(event) => setTask(event.target.value)}
-            rows={3}
-            maxLength={600}
-            spellCheck={false}
-            disabled={running}
-            placeholder="e.g. Buy two reams of paper from acme-supplies and pay for them."
-          />
-          <div className="live-presets">
-            <span className="muted">Try:</span>
-            {LIVE_PRESETS.map((preset) => (
-              <button
-                key={preset.label}
-                className="chip"
-                type="button"
-                disabled={running}
-                title={preset.task}
-                onClick={() => setTask(preset.task)}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-          <div className="live-actions">
-            <button
-              className="btn primary"
-              onClick={() => void run()}
-              disabled={running || task.trim().length === 0}
-            >
-              {running ? "Running…" : result ? "Run again" : "Ask Gemini to run it"}
-            </button>
-            <span className="muted">{task.trim().length}/600</span>
-          </div>
-        </div>
-
-        {running ? (
-          <div className="live-progress">
-            <span className="live">
-              <span className="pulse" /> working · {(elapsed / 1000).toFixed(1)}s
-            </span>
-            <p className="muted">
-              Gemini is choosing its next tool call. Usually 10–40 seconds; the model may call
-              several tools in sequence.
-            </p>
-          </div>
-        ) : null}
-
-        {error ? <div className="alert error">{error}</div> : null}
-
-        {result ? (
-          <>
-            {asked ? (
-              <p className="live-asked">
-                <span className="muted">Asked:</span> {asked}
-              </p>
-            ) : null}
-
-            <div className="live-summary">
-              <Stat label="Model" value={result.run.model} />
-              <Stat
-                label="Allowed"
-                value={String(result.snapshot.summary.allowed)}
-                tone="green"
-              />
-              <Stat label="Denied" value={String(result.snapshot.summary.denied)} tone="red" />
-              <Stat
-                label="Pending"
-                value={String(result.snapshot.summary.pendingApproval)}
-                tone="amber"
-              />
-              <Stat
-                label="Remaining"
-                value={result.snapshot.mandate ? money(result.snapshot.mandate.remaining) : "—"}
-              />
-            </div>
-
-            <p className="live-verify">
-              <code>{result.snapshot.mandate?.claims.id ?? "ephemeral mandate"}</code> · signature{" "}
-              <span className={result.verification.signatureValid ? "tone-green" : "tone-red"}>
-                {result.verification.signatureValid ? "verified" : "failed"}
-              </span>{" "}
-              · claims{" "}
-              <span className={result.verification.claimsValid ? "tone-green" : "tone-red"}>
-                {result.verification.claimsValid ? "valid" : "invalid"}
-              </span>{" "}
-              · fresh key <code>{result.publicKey.slice(0, 12)}…</code>
-            </p>
-
-            {steps?.length ? (
-              <ol className="steps">
-                {steps.map((step) => (
-                  <StepRow key={step.key} toolName={step.toolName} output={step.output} />
-                ))}
-              </ol>
-            ) : null}
-
-            {result.run.text ? <Report text={result.run.text} /> : null}
-
-            <p className="live-note">
-              Simulated PayPal: no PayPal credentials were used and no money moved. The mandate,
-              guard and ledger are the same code paths as a real run.
-            </p>
-          </>
-        ) : null}
-      </div>
-    </div>
   )
 }
 
@@ -1437,7 +1207,7 @@ export function App() {
   const { state, connected, error: streamError } = useLiveState()
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
-  const [showLive, setShowLive] = useState(false)
+  const [showChat, setShowChat] = useState(false)
 
   const rows = useMemo(() => (state?.ledger ?? []).map(toRow), [state?.ledger])
 
@@ -1536,16 +1306,16 @@ export function App() {
             <div className="live-cta">
               <button
                 className="btn primary sm"
-                onClick={() => setShowLive(true)}
+                onClick={() => setShowChat(true)}
                 disabled={state.live.remaining <= 0}
               >
                 <span className="live-dot" />
                 {state.live.remaining > 0
-                  ? "Run live with Gemini"
+                  ? "Chat live with Gemini"
                   : "Live budget exhausted today"}
               </button>
               <span className="live-cta-note">
-                Real model, simulated PayPal · {state.live.remaining}/{state.live.cap} runs left
+                Real model, simulated PayPal · {state.live.remaining}/{state.live.cap} chats left
                 today
               </span>
             </div>
@@ -1599,7 +1369,7 @@ export function App() {
         <LedgerPanel rows={rows} summary={state.summary} />
       </main>
 
-      {showLive ? <LiveRunDialog onClose={() => setShowLive(false)} /> : null}
+      {showChat ? <ChatDialog onClose={() => setShowChat(false)} /> : null}
     </div>
   )
 }
