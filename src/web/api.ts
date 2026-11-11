@@ -115,7 +115,7 @@ export interface Snapshot {
   model: string | null
   running: boolean
   replay: ReplayInfo | null
-  live?: { enabled: boolean; remaining: number; cap: number } | null
+  live?: { enabled: boolean; remaining: number | null; cap: number | null } | null
   mandate: {
     claims: MandateClaims
     signature: string

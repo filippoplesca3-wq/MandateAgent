@@ -53,7 +53,11 @@ const rateLimitPerMinute = Number(process.env["RATE_LIMIT_PER_MINUTE"] ?? 30)
 // always simulated in this path, so the worst case is Gemini quota, not money.
 const liveKey = process.env["GOOGLE_GENERATIVE_AI_API_KEY"]?.trim()
 const liveDemoEnabled = process.env["DEMO_LIVE"] === "1" && Boolean(liveKey)
-const liveDailyCap = Number(process.env["DEMO_LIVE_DAILY_CAP"] ?? 10)
+// Optional cost guard. Unset means no daily cap at all: the live demo has no
+// cooldown and no per-visitor chat limit, so a judge is never turned away.
+const liveDailyCap = process.env["DEMO_LIVE_DAILY_CAP"]
+  ? Number(process.env["DEMO_LIVE_DAILY_CAP"])
+  : undefined
 
 const store = new Store(
   signingKey,
@@ -158,7 +162,9 @@ const { app } = createApp({
     ? {
         liveDemo: {
           apiKey: liveKey,
-          ...(Number.isFinite(liveDailyCap) && liveDailyCap > 0 ? { dailyCap: liveDailyCap } : {}),
+          ...(liveDailyCap !== undefined && Number.isFinite(liveDailyCap) && liveDailyCap > 0
+            ? { dailyCap: liveDailyCap }
+            : {}),
           ...(process.env["AGENT_MODEL"] ? { model: process.env["AGENT_MODEL"] } : {}),
         },
       }

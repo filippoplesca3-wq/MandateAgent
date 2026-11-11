@@ -1304,19 +1304,15 @@ export function App() {
           </div>
           {state.live?.enabled ? (
             <div className="live-cta">
-              <button
-                className="btn primary sm"
-                onClick={() => setShowChat(true)}
-                disabled={state.live.remaining <= 0}
-              >
+              <button className="btn primary sm" onClick={() => setShowChat(true)}>
                 <span className="live-dot" />
-                {state.live.remaining > 0
-                  ? "Chat live with Gemini"
-                  : "Live budget exhausted today"}
+                Chat live with Gemini
               </button>
               <span className="live-cta-note">
-                Real model, simulated PayPal · {state.live.remaining}/{state.live.cap} chats left
-                today
+                Real model, simulated PayPal ·{" "}
+                {state.live.remaining === null
+                  ? "no time limit, no chat limit"
+                  : `${state.live.remaining}/${state.live.cap} chats left today`}
               </span>
             </div>
           ) : null}

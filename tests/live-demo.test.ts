@@ -229,6 +229,18 @@ describe("live run — endpoint", () => {
     expect(state.live.remaining).toBe(5)
   })
 
+  it("defaults to no daily cap, so the state says unlimited", async () => {
+    harness = await start({ apiKey: SECRET_KEY, run: async () => fakeOutput() })
+
+    const body = (await (await fetch(`${harness.base}/api/state`)).json()) as {
+      live: { enabled: boolean; remaining: number | null; cap: number | null }
+    }
+    expect(body.live).toEqual({ enabled: true, remaining: null, cap: null })
+
+    expect((await post(harness.base)).status).toBe(200)
+    expect((await post(harness.base)).status).toBe(200)
+  })
+
   it("never includes the server-side key in a response or the state snapshot", async () => {
     harness = await start({ apiKey: SECRET_KEY, dailyCap: 5, run: async () => fakeOutput() })
 
@@ -268,7 +280,7 @@ describe("live run — endpoint", () => {
     expect(state.live.remaining).toBe(3)
   })
 
-  it("allows only one run in flight", async () => {
+  it("allows overlapping runs instead of rejecting the second", async () => {
     let release: (value: LiveRunOutput) => void = () => {}
     let started: () => void = () => {}
     const startedPromise = new Promise<void>((resolve) => {
@@ -290,13 +302,11 @@ describe("live run — endpoint", () => {
     const first = post(harness.base)
     await startedPromise
 
-    const second = await post(harness.base)
-    const body = (await second.json()) as { ok: boolean; error: string }
-    expect(second.status).toBe(429)
-    expect(body.error).toContain("in progress")
-
+    const second = post(harness.base)
     release(fakeOutput())
+
     expect((await first).status).toBe(200)
+    expect((await second).status).toBe(200)
   })
 
   it("refuses a non-JSON POST so a cross-site form cannot burn the budget", async () => {

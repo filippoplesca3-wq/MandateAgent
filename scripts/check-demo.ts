@@ -99,18 +99,28 @@ const envelope: MandateEnvelope = {
 }
 pass("snapshot", `${state.body.mode} mode, mandate ${mandate.claims.id.slice(0, 8)}`)
 
-const live = state.body.live
+const live = state.body.live as
+  | { enabled: boolean; remaining: number | null; cap: number | null }
+  | null
+  | undefined
 if (live) {
-  if (!Number.isInteger(live.cap) || live.cap < 1) {
-    fail("live config", `expected a positive daily cap, got ${live.cap}`)
-  }
-  if (!Number.isInteger(live.remaining) || live.remaining < 0 || live.remaining > live.cap) {
+  if (live.cap === null || live.remaining === null) {
+    // No operator-set cap: the demo has no time or chat limit.
+    pass("live config", `${live.enabled ? "enabled" : "disabled"}, no time or chat limit`)
+  } else if (
+    !Number.isInteger(live.cap) ||
+    live.cap < 1 ||
+    !Number.isInteger(live.remaining) ||
+    live.remaining < 0 ||
+    live.remaining > live.cap
+  ) {
     fail("live config", `remaining ${live.remaining} is outside 0..${live.cap}`)
+  } else {
+    pass(
+      "live config",
+      `${live.enabled ? "enabled" : "disabled"}, ${live.remaining}/${live.cap} runs left today`,
+    )
   }
-  pass(
-    "live config",
-    `${live.enabled ? "enabled" : "disabled"}, ${live.remaining}/${live.cap} runs left today`,
-  )
 } else {
   console.log("  SKIP  live config             live runs are off")
 }

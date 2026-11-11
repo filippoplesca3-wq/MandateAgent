@@ -202,9 +202,9 @@ Isolation is structural: every chat has its own store, signing key, mandate,
 approvals and ledger, and never receives the replay player or the recorded
 store. A chat cannot mutate the recording, spend another chat's budget or leave
 approvals behind. The key lives in the process environment and is only read by
-the route; it is never serialized into a snapshot or a response. Two limits
-bound cost: a global daily cap shared with one-shot live runs and one in-flight
-request. Chats have no cooldown, idle expiry or turn cap. The routes are disabled
+the route; it is never serialized into a snapshot or a response. Chats have no
+cooldown, idle expiry, turn cap or in-flight lock, and no daily cap unless the
+operator opts in with `DEMO_LIVE_DAILY_CAP`. The routes are disabled
 when the key or `DEMO_LIVE` is absent, and PayPal is always simulated on this
 path.
 

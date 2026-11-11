@@ -50,8 +50,10 @@ export interface SnapshotMeta {
 /** Whether this deployment can run the model on demand, and how much is left. */
 export interface LiveDemoInfo {
   enabled: boolean
-  remaining: number
-  cap: number
+  /** null means no daily cap: the demo is unlimited. */
+  remaining: number | null
+  /** null means no daily cap: the demo is unlimited. */
+  cap: number | null
 }
 
 export interface ServerSnapshot {

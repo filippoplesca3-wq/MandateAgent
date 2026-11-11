@@ -246,19 +246,19 @@ export function createApp(config: ServerConfig): ServerHandle {
   let mandateId = config.mandateId
   let running = false
 
-  // Live runs are capped globally per day. In-memory is enough for the demo: a
-  // restart is a fresh window, and the cap is a cost guard, not a billing
-  // system. There is no cooldown or idle timeout: a judge can keep chatting.
-  const liveDailyCap = config.liveDemo?.dailyCap ?? 10
+  // No cooldown, no idle timeout and no in-flight lock: a judge can start a new
+  // chat or a new run whenever they like, as many times as they like, and two
+  // requests may overlap. The only cost guard is an optional daily cap the
+  // operator sets explicitly; when it is unset the demo is unlimited.
+  const liveDailyCap = config.liveDemo?.dailyCap
   let liveRunsDay = new Date().toISOString().slice(0, 10)
   let liveRunsToday = 0
-  let liveInFlight = false
 
-  // Chat sessions share the daily budget with one-shot live runs. The cap is a
-  // model-cost guard, not a billing system, so in-memory state is enough.
   const chatSessions = new Map<string, ChatSession>()
 
-  function liveRemaining(): number {
+  /** null means unlimited. */
+  function liveRemaining(): number | null {
+    if (liveDailyCap === undefined) return null
     const today = new Date().toISOString().slice(0, 10)
     if (today !== liveRunsDay) {
       liveRunsDay = today
@@ -267,9 +267,15 @@ export function createApp(config: ServerConfig): ServerHandle {
     return Math.max(0, liveDailyCap - liveRunsToday)
   }
 
-  function liveInfo(): { enabled: boolean; remaining: number; cap: number } | null {
+  /** True only when a cap was configured and it is used up. */
+  function liveCapReached(): boolean {
+    const remaining = liveRemaining()
+    return remaining !== null && remaining <= 0
+  }
+
+  function liveInfo(): { enabled: boolean; remaining: number | null; cap: number | null } | null {
     if (!config.liveDemo) return null
-    return { enabled: true, remaining: liveRemaining(), cap: liveDailyCap }
+    return { enabled: true, remaining: liveRemaining(), cap: liveDailyCap ?? null }
   }
 
   // In a hosted replay the mandate on screen was signed by the recording key,
@@ -519,7 +525,7 @@ export function createApp(config: ServerConfig): ServerHandle {
     if (!body) return
     const task = body.task?.trim()
 
-    if (liveRemaining() <= 0) {
+    if (liveCapReached()) {
       res.status(429).json({
         ok: false,
         error: `Today's live-run budget (${liveDailyCap}) is exhausted. The recording is still available.`,
@@ -527,16 +533,7 @@ export function createApp(config: ServerConfig): ServerHandle {
       return
     }
 
-    if (liveInFlight) {
-      res.status(429).json({
-        ok: false,
-        error: "Another live request is in progress. Try again in a moment.",
-      })
-      return
-    }
-
     liveRunsToday += 1
-    liveInFlight = true
 
     const runner = live.run ?? runLiveDemo
     runner({
@@ -552,9 +549,6 @@ export function createApp(config: ServerConfig): ServerHandle {
         const message = error instanceof Error ? error.message : String(error)
         res.status(502).json({ ok: false, error: message })
       })
-      .finally(() => {
-        liveInFlight = false
-      })
   })
 
   // -------------------------------------------------------------------------
@@ -564,7 +558,7 @@ export function createApp(config: ServerConfig): ServerHandle {
   /**
    * One conversational turn against a throwaway store.
    *
-   * The first turn creates a session and spends one unit of the shared daily
+   * The first turn creates a session and spends one unit of the optional daily
    * budget. Later turns must present the session id; they do not create a new
    * mandate or spend another unit. A session has no turn limit and no idle
    * expiry: the visitor stops when they are done. The model only ever sees the
@@ -606,16 +600,8 @@ export function createApp(config: ServerConfig): ServerHandle {
       }
     }
 
-    if (liveInFlight) {
-      res.status(429).json({
-        ok: false,
-        error: "Another live request is in progress. Try again in a moment.",
-      })
-      return
-    }
-
     if (!session) {
-      if (liveRemaining() <= 0) {
+      if (liveCapReached()) {
         res.status(429).json({
           ok: false,
           error: `Today's live budget (${liveDailyCap}) is exhausted. The recording is still available.`,
@@ -637,7 +623,6 @@ export function createApp(config: ServerConfig): ServerHandle {
     }
 
     const activeSession = session
-    liveInFlight = true
 
     takeChatTurn(activeSession, message, {
       apiKey: live.apiKey,
@@ -662,9 +647,6 @@ export function createApp(config: ServerConfig): ServerHandle {
       .catch((error: unknown) => {
         const text = error instanceof Error ? error.message : String(error)
         res.status(502).json({ ok: false, error: text, sessionId: activeSession.id })
-      })
-      .finally(() => {
-        liveInFlight = false
       })
   })
 

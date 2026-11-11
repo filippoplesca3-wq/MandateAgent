@@ -128,8 +128,8 @@ model.
 - **Live vs. hosted.** The hosted build defaults to a recording so it works with
   no credentials, but judges can press **Chat live with Gemini**, say what they
   want to buy and talk to the real model: a multi-turn conversation against
-  simulated PayPal, in a throwaway store, bounded only by a shared daily model
-  budget. There is no cooldown, no idle expiry and no turn cap. The chat model
+  simulated PayPal, in a throwaway store, with no cooldown, idle expiry, turn cap
+  or in-flight lock. The chat model
   only gets a proposal tool — it may name any item and quote a USD price, never a
   payment call. The server validates the quote, the guard enforces budget,
   ceiling and merchant allowlist, and the purchase runs only when the visitor
@@ -137,8 +137,8 @@ model.
   never sees it. Real PayPal sandbox checkout stays local and is shown in the
   video.
 - **Free-tier limits.** Gemini's free tier caps requests per day per model, so
-  the agent falls back across models, the hosted chat is capped, and the
-  recording remains the zero-cost fallback.
+  the agent falls back across models, an operator can set `DEMO_LIVE_DAILY_CAP`
+  as a cost guard, and the recording remains the zero-cost fallback.
 
 ## Accomplishments that we're proud of
 
@@ -229,9 +229,9 @@ Screenshots for the Devpost gallery are in `docs/screenshots/`:
    seller outside the allowlist is refused too. Click the proposal card to
    approve the exact quote, and the guarded `create_order` → `pay_order` pair
    runs against simulated PayPal, returning a receipt and the chat's own ledger.
-   Nothing changes the recording, and no money can move. Chats are bounded by a
-   shared daily model budget; there is no cooldown, idle expiry or turn cap, so
-   you can keep talking. A `429` only means the day's model budget is exhausted.
+   Nothing changes the recording, and no money can move. Chats have no cooldown,
+   idle expiry, turn cap or in-flight lock, so you can keep talking. A `429` only
+   appears if the operator set `DEMO_LIVE_DAILY_CAP` and it is spent.
 4. Use the **Test a payment** presets. The $12, $45 and $200 presets run a live
    dry-run policy check against the pre-seeded mandate. The **$99 ->
    sketchy-deals (injection)** preset is a deterministic, scripted attack; on

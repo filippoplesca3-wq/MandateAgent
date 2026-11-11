@@ -16,13 +16,12 @@ services:
       # published Ed25519 public key is stable for the life of the service.
       - key: MANDATE_SIGNING_KEY
         generateValue: true
-      # Live runs are opt-in and capped. The Gemini key is set in the Render
-      # dashboard (sync: false), never in this file. Without the key the
-      # endpoint stays off and the recording remains the only path.
+      # Live runs are opt-in with no cooldown, no time limit and no chat cap.
+      # The Gemini key is set in the Render dashboard (sync: false), never in
+      # this file. Without the key the endpoint stays off and the recording
+      # remains the only path. Add DEMO_LIVE_DAILY_CAP only for a cost guard.
       - key: DEMO_LIVE
         value: "1"
-      - key: DEMO_LIVE_DAILY_CAP
-        value: "10"
       - key: GOOGLE_GENERATIVE_AI_API_KEY
         sync: false
       - key: NODE_VERSION

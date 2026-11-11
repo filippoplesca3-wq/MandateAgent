@@ -388,11 +388,12 @@ PayPal call; a seller outside the allowlist is refused too. The model is told to
 read the guard's decision and explain it honestly, including refusals.
 
 The Gemini key never reaches the browser and is never included in a response.
-Cost is bounded two ways: `DEMO_LIVE_DAILY_CAP` new chats per UTC day (default
-10, shared with one-shot live runs) and one live request in flight at a time.
-There is no cooldown and no session expiry, so a judge can keep talking. With no
-key, or with `DEMO_LIVE` unset, both endpoints answer `503` and the recording
-remains the only path.
+There is no time limit, no cooldown, no session expiry, no turn cap, no in-flight
+lock and no per-visitor chat limit, so a judge can keep talking and start as
+many chats as they like. The only cost guard an operator can opt into is
+`DEMO_LIVE_DAILY_CAP` (new chats per UTC day, shared with one-shot live runs);
+unset means unlimited. With no key, or with `DEMO_LIVE` unset, both endpoints
+answer `503` and the recording remains the only path.
 
 This is the honest split: the hosted chat proves the **model and guard** are
 real, while the video proves the **PayPal sandbox checkout** with a real payer
@@ -415,8 +416,9 @@ recording is untouched.*
 - start: `npm start`
 - env: `REPLAY_FILE=replays/demo-run.json`, plus a Render-generated
   `MANDATE_SIGNING_KEY`
-- optional live chat: `DEMO_LIVE=1`, `DEMO_LIVE_DAILY_CAP=10`, and
+- optional live chat: `DEMO_LIVE=1` and
   `GOOGLE_GENERATIVE_AI_API_KEY` set as a secret in the Render dashboard
+  (uncapped unless you add `DEMO_LIVE_DAILY_CAP`)
 
 No PayPal credentials are required: replay mode never calls PayPal, and the
 hosted live chat always uses the simulated tool doubles. The hosted demo is
@@ -656,7 +658,7 @@ every push (`.github/workflows/ci.yml`).
 | `REPLAY_FILE` | no | Serve a recorded run instead of calling any API. |
 | `REPLAY_FRAME_MS` | no | Playback beat per frame, default `1200`. |
 | `DEMO_LIVE` | no | `1` enables the live chat when a Gemini key is present. |
-| `DEMO_LIVE_DAILY_CAP` | no | New live chats per UTC day, default 10. |
+| `DEMO_LIVE_DAILY_CAP` | no | Optional cost guard: new live chats per UTC day. Unset means unlimited. |
 | `PORT` | no | API port, default `3001`. |
 
 On the Gemini free tier the daily request cap is small and counted **per
