@@ -13,8 +13,7 @@ Legend: ✅ verified, ⬜ to do, ⚠️ risk.
 
 ## 1. Video — the only hard blocker
 
-- [ ] ⬜ Record with [DEMO_SCRIPT.md](DEMO_SCRIPT.md) (2:40, hard limit 3:00,
-      1080p).
+- [x] ✅ Recorded and uploaded: https://youtu.be/dxX1lxIP6u8 (1:32, public).
 - [ ] Must show the project **working on its own device**: LIVE badge + PayPal
       sandbox payer approval, the $45 human approval, the $99 injection denial,
       and the hosted **Chat live with Gemini** proposal → receipt.
@@ -23,8 +22,8 @@ Legend: ✅ verified, ⬜ to do, ⚠️ risk.
       `Agent Mandate — signed spending authority for AI agents on PayPal`.
       Description: repo URL, demo URL, "PayPal sandbox only".
 - [ ] Review captions (auto-captions mishear "Ed25519" and "sketchy-deals").
-- [ ] Replace `https://youtu.be/...` in `README.md` and
-      [SUBMISSION.md](SUBMISSION.md) with the real URL.
+- [x] ✅ `https://youtu.be/dxX1lxIP6u8` is in `README.md` and
+      [SUBMISSION.md](SUBMISSION.md).
 - [ ] Watch the final upload once, end to end, before submitting.
 
 ## 2. Repository — pass/fail gate
@@ -37,7 +36,7 @@ Legend: ✅ verified, ⬜ to do, ⚠️ risk.
       pass locally.
 - [ ] ⬜ CI green on the submitted commit (Actions → CI).
 - [ ] ✅ No secrets committed: `.env` is gitignored, `git log -p -- .env` is empty.
-- [ ] ⬜ README video URL no longer a placeholder.
+- [x] ✅ README video URL is the real one.
 - [ ] If the project predates the hackathon (opened 1 Oct 2026), the text
       description must say what changed during the event.
 
@@ -89,7 +88,7 @@ Legend: ✅ verified, ⬜ to do, ⚠️ risk.
 
 ## Open items right now
 
-1. ⬜ Video — the only real blocker.
+1. ✅ Video — uploaded public: https://youtu.be/dxX1lxIP6u8.
 2. ⬜ Render **Manual Deploy** — 2 minutes, unlocks the no-cap build.
 3. ⬜ `DEMO_URL` repository variable — keeps the demo awake for judges.
 4. ⬜ License in the repo About panel + sponsor tools on the Devpost form.
