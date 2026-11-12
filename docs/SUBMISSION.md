@@ -134,8 +134,8 @@ model.
   payment call. The server validates the quote, the guard enforces budget,
   ceiling and merchant allowlist, and the purchase runs only when the visitor
   clicks the card showing that exact price. The server holds the key; the browser
-  never sees it. Real PayPal sandbox checkout stays local and is shown in the
-  video.
+  never sees it. Real PayPal sandbox checkout stays local and is exercised by
+  `npm run check:live`; the hosted demo simulates PayPal so no money can move.
 - **Free-tier limits.** Gemini's free tier caps requests per day per model, so
   the agent falls back across models, an operator can set `DEMO_LIVE_DAILY_CAP`
   as a cost guard, and the recording remains the zero-cost fallback.
